@@ -1,0 +1,9 @@
+# Scrapy 爬虫依赖
+scrapy==2.12.*
+selenium==4.27.*
+webdriver-manager==4.0.*
+pymysql==1.1.*
+redis==5.2.*
+pillow==11.1.*
+ddddocr==1.5.*
+fake-useragent==2.0.*

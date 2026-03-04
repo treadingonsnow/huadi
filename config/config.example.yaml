@@ -1,0 +1,34 @@
+# 应用配置模板
+# 使用时复制为 config.yaml 并填入实际值
+
+app:
+  name: "上海美食大数据分析平台"
+  env: development  # development / production
+  port: 8000
+  secret_key: "change-me-in-production"
+
+database:
+  mysql:
+    host: localhost
+    port: 3306
+    user: root
+    password: ""
+    database: shanghai_food
+    pool_size: 10
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 0
+
+crawler:
+  download_delay: 1.0       # 采集间隔（秒），遵守≤1次/秒
+  concurrent_requests: 8
+  retry_times: 3
+  proxy_pool_url: ""         # 代理池服务地址
+  schedule:
+    incremental: "0 2 * * *" # 每日凌晨2点增量采集
+    full: "0 3 * * 0"        # 每周日凌晨3点全量采集
+
+amap:
+  api_key: ""                # 高德地图 JS API Key
