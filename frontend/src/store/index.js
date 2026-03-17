@@ -1,7 +1,16 @@
-// 状态管理 (Zustand)
-// Store 模块：
-// - useUserStore       用户状态（token, userInfo, isLoggedIn, role）
-//   - actions: login(), logout(), refreshToken(), fetchUserInfo()
-// - useSearchStore     搜索状态（searchParams, searchResults, pagination）
-//   - actions: search(), updateFilters(), changePage()
-// - useAnalysisStore   分析数据缓存（各分析模块的结果数据）
+import { create } from 'zustand'
+
+export const useUserStore = create((set) => ({
+  token: localStorage.getItem('token') || null,
+  userInfo: null,
+
+  setToken: (token) => {
+    localStorage.setItem('token', token)
+    set({ token })
+  },
+
+  logout: () => {
+    localStorage.removeItem('token')
+    set({ token: null, userInfo: null })
+  },
+}))

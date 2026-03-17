@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactECharts from 'echarts-for-react'
 
-export default function PriceChart({ data }) {
+export default function RatingChart({ data }) {
   if (!data?.length) return null
 
   const option = {
@@ -10,7 +10,7 @@ export default function PriceChart({ data }) {
     grid: { left: 16, right: 16, bottom: 8, top: 16, containLabel: true },
     xAxis: {
       type: 'category',
-      data: data.map((d) => d.label),
+      data: data.map((d) => d.range),
       axisLabel: { color: '#8b949e', fontSize: 11 },
       axisLine: { lineStyle: { color: '#30363d' } },
     },
@@ -25,7 +25,7 @@ export default function PriceChart({ data }) {
       itemStyle: {
         color: {
           type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [{ offset: 0, color: '#e63946' }, { offset: 1, color: '#7b1521' }],
+          colorStops: [{ offset: 0, color: '#ffd700' }, { offset: 1, color: '#7a6200' }],
         },
         borderRadius: [4, 4, 0, 0],
       },

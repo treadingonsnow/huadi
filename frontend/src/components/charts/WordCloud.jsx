@@ -1,6 +1,39 @@
-// 词云图组件
-// 功能：
-// - 基于 echarts-for-react + echarts-wordcloud 扩展渲染词云图
-// - Props: words (关键词+频率数组), shape (词云形状), colorScheme
-// - 用途：评论关键词词云、热门菜品词云
-// - 支持点击关键词触发回调（onClick prop）
+import React from 'react'
+import ReactECharts from 'echarts-for-react'
+import 'echarts-wordcloud'
+
+export default function WordCloud({ positive = [], negative = [] }) {
+  const allWords = [
+    ...positive.map((w) => ({ name: w.word, value: w.count, textStyle: { color: '#06d6a0' } })),
+    ...negative.map((w) => ({ name: w.word, value: w.count, textStyle: { color: '#e63946' } })),
+  ]
+
+  if (!allWords.length) return null
+
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: { show: true },
+    series: [{
+      type: 'wordCloud',
+      shape: 'circle',
+      width: '100%',
+      height: '100%',
+      sizeRange: [14, 48],
+      rotationRange: [-30, 30],
+      gridSize: 8,
+      drawOutOfBound: false,
+      textStyle: {
+        fontFamily: 'sans-serif',
+        fontWeight: 'bold',
+        color: () => {
+          const colors = ['#e63946', '#ffd700', '#06d6a0', '#118ab2', '#f4a261', '#a8dadc']
+          return colors[Math.floor(Math.random() * colors.length)]
+        },
+      },
+      emphasis: { textStyle: { shadowBlur: 10, shadowColor: '#ffd700' } },
+      data: allWords,
+    }],
+  }
+
+  return <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
+}
