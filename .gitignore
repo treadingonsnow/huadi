@@ -40,5 +40,4 @@ data/
 docker-compose.override.yml
 
 # md
-/上海美食大数据分析平台-需求分析文档.md
-/上海美食大数据分析平台-需求调研报告.md
+docs/架构设计与开发指南.md
