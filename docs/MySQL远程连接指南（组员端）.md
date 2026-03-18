@@ -50,7 +50,7 @@ sudo apt install -y mysql-client
 ## 第三步：连接测试
 
 ```bash
-mysql -h 192.168.54.52 -P 3306 -u team -p
+mysql -h 192.168.54.27 -P 3306 -u team -p
 # 输入密码：team123456
 ```
 
@@ -79,7 +79,7 @@ nano .env
 编辑 `.env`，只需修改 MySQL 相关的几行：
 
 ```env
-MYSQL_HOST=192.168.54.52
+MYSQL_HOST=192.168.54.27
 MYSQL_PORT=3306
 MYSQL_USER=team
 MYSQL_PASSWORD=team123456
