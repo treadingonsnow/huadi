@@ -7,7 +7,7 @@ let mapRegistered = false
 async function ensureMap() {
   if (mapRegistered) return
   try {
-    const res = await fetch('/shanghai.json')
+    const res = await fetch('/shanghai.geojson')
     const json = await res.json()
     echarts.registerMap('shanghai', json)
     mapRegistered = true
