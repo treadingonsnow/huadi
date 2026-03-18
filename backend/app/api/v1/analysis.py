@@ -1,7 +1,79 @@
-# 数据分析 API 路由
-# 功能：
-# - GET /area          区域分析（商圈餐厅密度、区域菜系分布、区域消费水平、热力图数据）
-# - GET /price         价格分析（价格区间分布、菜系价格对比、价格趋势、性价比排行）
-# - GET /review        口碑分析（评分分布、情感分析结果、热门菜品、关键词词云数据）
-# - GET /trend         趋势分析（菜系流行趋势、新店开业趋势、消费趋势预测、季节性分析）
-# - GET /competitor    竞品分析（同类餐厅对比、优劣势分析、市场份额、SWOT分析）
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.core.deps import get_db
+from app.services.analysis_service import AnalysisService
+
+
+router = APIRouter(prefix="/analysis", tags=["analysis"])
+
+
+def success(data: Any) -> dict[str, Any]:
+    return {"code": 200, "message": "success", "data": data}
+
+
+@router.get("/overview")
+def get_overview(db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_overview())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取概览数据失败: {exc}") from exc
+
+
+@router.get("/area-distribution")
+def get_area_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_area_distribution())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取区域分布失败: {exc}") from exc
+
+
+@router.get("/cuisine-distribution")
+def get_cuisine_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_cuisine_distribution())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取菜系分布失败: {exc}") from exc
+
+
+@router.get("/price-distribution")
+def get_price_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_price_distribution())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取价格分布失败: {exc}") from exc
+
+
+@router.get("/rating-distribution")
+def get_rating_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_rating_distribution())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取评分分布失败: {exc}") from exc
+
+
+@router.get("/area-avg-price")
+def get_area_avg_price(db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_area_avg_price())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取各区均价失败: {exc}") from exc
+
+
+@router.get("/review-keywords")
+def get_review_keywords(limit: int = 30, db: Session = Depends(get_db)) -> dict[str, Any]:
+    try:
+        service = AnalysisService(db)
+        return success(service.get_review_keywords(limit=limit))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"获取口碑关键词失败: {exc}") from exc

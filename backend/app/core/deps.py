@@ -1,6 +1,12 @@
-# FastAPI 依赖注入
-# 功能：
-# - get_db()            获取数据库会话（yield模式，自动关闭）
-# - get_current_user()  从请求Header中提取Token，解析当前用户（依赖 security.verify_token）
-# - require_role()      角色权限校验装饰器（admin/analyst/editor）
-# - get_redis()         获取 Redis 连接
+from __future__ import annotations
+
+from collections.abc import Generator
+from typing import Any
+
+
+def get_db() -> Generator[Any, None, None]:
+    try:
+        from app.database import get_db as database_get_db
+    except Exception as exc:
+        raise RuntimeError("数据库依赖未配置，请先实现 app.database.get_db") from exc
+    yield from database_get_db()
