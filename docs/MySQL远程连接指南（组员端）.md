@@ -72,7 +72,7 @@ EXIT;
 在项目根目录复制配置文件：
 
 ```bash
-cp .env .env
+cp .env.example .env
 nano .env
 ```
 
