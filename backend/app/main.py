@@ -66,6 +66,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # === 应用生命周期事件 ===
+# === 应用生命周期事件 ===
 
 @app.on_event("startup")
 async def startup_event():
@@ -81,8 +82,9 @@ async def startup_event():
 
     # 测试数据库连接
     try:
+        from sqlalchemy import text
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         print("✅ 数据库连接成功")
     except Exception as e:
