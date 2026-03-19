@@ -1,6 +1,6 @@
 import { get } from '@/utils/request'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 const mockOverview = { total_count: 3186, avg_rating: 4.2, avg_price: 88.5, district_count: 16 }
 

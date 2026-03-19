@@ -129,6 +129,11 @@ from .api.v1 import restaurants
 
 app.include_router(restaurants.router, prefix="/api/v1/restaurants", tags=["餐厅"])
 
+# 分析模块
+from .api.v1 import analysis
+
+app.include_router(analysis.router, prefix="/api/v1", tags=["数据分析"])
+
 
 # === 根路径 ===
 
