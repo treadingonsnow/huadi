@@ -37,34 +37,29 @@ app.add_middleware(
 
 
 # === 全局异常处理器 ===
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """处理请求参数验证异常"""
     return error(
-        msg=f"参数验证失败：{exc.errors()[0].get('msg', '未知错误')}",
+        message=f"参数验证失败：{exc.errors()[0].get('msg', '未知错误')}",
         code=422
     )
-
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     """处理数据库异常"""
     return error(
-        msg="数据库操作失败",
+        message="数据库操作失败",
         code=500
     )
-
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """处理其他未捕获异常"""
     return error(
-        msg=f"服务器内部错误：{str(exc)}",
+        message=f"服务器内部错误：{str(exc)}",
         code=500
     )
-
-
 # === 应用生命周期事件 ===
 # === 应用生命周期事件 ===
 

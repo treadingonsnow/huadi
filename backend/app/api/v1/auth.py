@@ -156,6 +156,8 @@ def refresh_token(
 
 # === 获取当前用户信息 ===
 
+# === 获取当前用户信息 ===
+
 @router.get("/me")
 def get_current_user_info(
         current_user: User = Depends(get_current_user)
@@ -171,10 +173,9 @@ def get_current_user_info(
     return success(data={
         "user_id": current_user.user_id,
         "username": current_user.username,
-        "email": current_user.email,
-        "phone": current_user.phone,
-        "role": current_user.role,
-        "is_active": current_user.is_active,
+        "email": getattr(current_user, 'email', None),
+        "role": getattr(current_user, 'role', 'user'),
+        "is_active": getattr(current_user, 'is_active', True),
         "create_time": current_user.create_time.isoformat() if current_user.create_time else None,
         "last_login": current_user.last_login.isoformat() if current_user.last_login else None
     })
@@ -182,30 +183,19 @@ def get_current_user_info(
 
 # === 更新用户信息 ===
 
+
 @router.put("/me")
 def update_current_user(
         email: str = None,
-        phone: str = None,
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
     """
     更新当前登录用户信息
-
-    需要：Authorization: Bearer <token>
-
-    参数:
-        email: 邮箱（可选）
-        phone: 手机号（可选）
-
-    返回:
-        {"code": 200, "message": "success", "data": {...}}
     """
     # 更新字段
     if email is not None:
         current_user.email = email
-    if phone is not None:
-        current_user.phone = phone
 
     db.commit()
     db.refresh(current_user)
@@ -213,7 +203,7 @@ def update_current_user(
     return success(data={
         "user_id": current_user.user_id,
         "username": current_user.username,
-        "email": current_user.email,
-        "phone": current_user.phone,
-        "role": current_user.role
+        "email": getattr(current_user, 'email', None),
+        "role": getattr(current_user, 'role', 'user'),
+        "is_active": getattr(current_user, 'is_active', True)
     })

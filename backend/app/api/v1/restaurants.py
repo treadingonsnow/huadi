@@ -44,20 +44,35 @@ def search_restaurants(
     """
     餐厅搜索接口
 
+    查询方式：
+    - keyword: 模糊查询 (%keyword%)
+    - district: 模糊查询 (%district%)
+    - business_area: 模糊查询 (%business_area%)
+    - cuisine_type: 精确查询
+
     返回:
         {"code": 200, "message": "success", "data": {"total": 100, "page": 1, "page_size": 20, "items": [...]}}
     """
     # 构建查询条件
     conditions = []
 
+    # 关键词：模糊查询
     if keyword:
         conditions.append(Restaurant.restaurant_name.like(f"%{keyword}%"))
+
+    # 行政区：模糊查询（用户输入"黄浦"也能匹配"黄浦区"）
     if district:
-        conditions.append(Restaurant.district == district)
+        conditions.append(Restaurant.district.like(f"%{district}%"))
+
+    # 商圈：模糊查询
     if business_area:
-        conditions.append(Restaurant.business_area == business_area)
+        conditions.append(Restaurant.business_area.like(f"%{business_area}%"))
+
+    # 菜系：精确查询（固定分类）
     if cuisine_type:
         conditions.append(Restaurant.cuisine_type == cuisine_type)
+
+    # 价格区间
     if min_price is not None:
         conditions.append(Restaurant.avg_price >= min_price)
     if max_price is not None:
@@ -70,16 +85,14 @@ def search_restaurants(
 
     # 排序
     if sort_by == "rating":
-        # 需要关联评论表计算平均评分
         query = query.outerjoin(Review).group_by(Restaurant.restaurant_id)
         query = query.order_by(desc(func.avg(Review.rating_overall)))
     elif sort_by == "price":
         query = query.order_by(Restaurant.avg_price)
     elif sort_by == "hot":
-        # 按评论数量排序（热度）
         query = query.outerjoin(Review).group_by(Restaurant.restaurant_id)
         query = query.order_by(desc(func.count(Review.review_id)))
-    # default 不排序，按数据库默认顺序
+    # default 不排序
 
     # 总数
     total = query.count()
@@ -112,7 +125,7 @@ def get_restaurant_detail(
     restaurant = db.query(Restaurant).filter(Restaurant.restaurant_id == restaurant_id).first()
 
     if not restaurant:
-        return error(msg="餐厅不存在", code=404)
+        return error(message="餐厅不存在", code=404)
 
     # 获取平均评分
     avg_rating = db.query(func.avg(Review.rating_overall)).filter(
@@ -151,7 +164,7 @@ def get_restaurant_reviews(
     # 检查餐厅是否存在
     restaurant = db.query(Restaurant).filter(Restaurant.restaurant_id == restaurant_id).first()
     if not restaurant:
-        return error(msg="餐厅不存在", code=404)
+        return error(message="餐厅不存在", code=404)
 
     # 构建查询条件
     conditions = [Review.restaurant_id == restaurant_id]
@@ -206,7 +219,7 @@ def toggle_favorite(
     # 检查餐厅是否存在
     restaurant = db.query(Restaurant).filter(Restaurant.restaurant_id == restaurant_id).first()
     if not restaurant:
-        return error(msg="餐厅不存在", code=404)
+        return error(message="餐厅不存在", code=404)
 
     # 检查是否已收藏
     existing_favorite = db.query(UserFavorite).filter(

@@ -34,6 +34,14 @@ from sqlalchemy.orm import relationship
 from ..database import Base
 from datetime import datetime
 
+# 用户 ORM 模型
+# 对应数据表：sys_user
+
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.orm import relationship
+from ..database import Base
+from datetime import datetime
+
 
 class User(Base):
     """用户模型 - 对应 sys_user 表"""
@@ -46,7 +54,6 @@ class User(Base):
     # === 基本信息 ===
     username = Column(String(50), unique=True, nullable=False, index=True, comment="用户名")
     password_hash = Column(String(128), nullable=False, comment="密码哈希（BCrypt）")
-    phone = Column(String(20), nullable=True, comment="手机号")
     email = Column(String(100), nullable=True, comment="邮箱")
 
     # === 权限控制 ===
@@ -54,10 +61,10 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True, comment="是否启用")
 
     # === 时间戳 ===
-    create_time = Column(DateTime, nullable=False, default=datetime.utcnow, comment="创建时间")
+    create_time = Column(DateTime, nullable=True, default=datetime.utcnow, comment="创建时间")
     last_login = Column(DateTime, nullable=True, comment="最后登录时间")
 
-    # === 关联关系（简化版，移除 back_populates）===
+    # === 关联关系 ===
     favorites = relationship(
         "UserFavorite",
         foreign_keys="UserFavorite.user_id",
