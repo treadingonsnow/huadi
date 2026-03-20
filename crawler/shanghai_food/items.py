@@ -6,3 +6,15 @@
 # - DishItem           菜品数据（菜品名称、价格、月销量、分类）
 # - NoteItem           探店笔记（标题、正文、点赞数、收藏数、标签）—— 小红书/抖音
 # - GovDataItem        政府公开数据（食品经营许可证、抽检结果、行政处罚）
+
+
+import scrapy
+
+class RestaurantItem(scrapy.Item):
+    name = scrapy.Field()
+    address = scrapy.Field()
+    cuisine = scrapy.Field()
+    avg_price = scrapy.Field()
+    rating = scrapy.Field()
+    district = scrapy.Field()
+    phone = scrapy.Field()  # 用于脱敏
