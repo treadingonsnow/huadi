@@ -8,12 +8,12 @@
 # - 配送信息：配送范围、配送费、预计送达时间
 # 采集方式：Scrapy + API逆向
 # 更新策略：每日增量采集
-##
+
 
 import scrapy
 import random
 from datetime import datetime
-from shanghai_food.items import ShanghaiFoodItem
+from ..items import RestaurantItem
 
 
 class MeituanSpider(scrapy.Spider):
@@ -39,7 +39,7 @@ class MeituanSpider(scrapy.Spider):
         restaurant_list = response.xpath('//div[contains(@class, "restaurant-item") or contains(@class, "poi-item")]')
 
         for item_node in restaurant_list:
-            item = ShanghaiFoodItem()
+            item = RestaurantItem()
 
             # 提取核心字段
             item["name"] = item_node.xpath('.//*[contains(@class, "name") or contains(@class, "title")]/text()').get(
