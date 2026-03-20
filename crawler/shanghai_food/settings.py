@@ -1,11 +1,29 @@
-# Scrapy 项目配置
-# 功能：
-# - BOT_NAME, SPIDER_MODULES 等基础配置
-# - DOWNLOAD_DELAY = 1.0          遵守采集频率≤1次/秒
-# - CONCURRENT_REQUESTS = 8       并发请求数
-# - ROBOTSTXT_OBEY = True         遵守 robots.txt
-# - DOWNLOADER_MIDDLEWARES        启用代理IP中间件、User-Agent轮换中间件、反爬中间件
-# - ITEM_PIPELINES                启用数据清洗Pipeline、数据入库Pipeline
-# - RETRY_TIMES = 3               失败重试3次
-# - LOG_LEVEL = 'INFO'            日志级别
-# - MySQL/Redis 连接配置（从环境变量读取）
+# 开启MySQL管道
+ITEM_PIPELINES = {
+    "shanghai_food.pipelines.ShanghaiFoodPipeline": 300,
+}
+
+# MySQL配置（替换为你的实际信息）
+MYSQL_CONFIG = {
+    "host": "192.168.54.99",
+    "user": "team",
+    "password": "team123456",
+    "database": "shanghai_food",
+    "charset": "utf8mb4"
+}
+
+# 开启随机UA中间件
+DOWNLOADER_MIDDLEWARES = {
+    "shanghai_food.middlewares.RandomUserAgentMiddleware": 543,
+}
+
+# 基础请求头
+DEFAULT_REQUEST_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9",
+    "Referer": "https://www.meituan.com/",
+}
+
+# 爬虫基础配置
+ROBOTSTXT_OBEY = False  # 美团robots.txt限制爬虫，需关闭
+DOWNLOAD_TIMEOUT = 10   # 请求超时时间
