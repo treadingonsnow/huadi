@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button, message } from 'antd'
+import { DownloadOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useUserStore } from '@/store'
 import {
   getOverview, getAreaDistribution, getCuisineDistribution,
@@ -22,6 +24,7 @@ export default function Dashboard() {
   const [ratingData, setRatingData] = useState([])
   const [keywords, setKeywords] = useState({ positive: [], negative: [] })
   const [areaPriceData, setAreaPriceData] = useState([])
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     getOverview().then((r) => r.code === 200 && setOverview(r.data))
@@ -35,6 +38,33 @@ export default function Dashboard() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
+  const handleExportReport = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/v1/report/generate', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      if (!res.ok) {
+        const json = await res.json()
+        message.error(json.message || '报告生成失败')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const now = new Date()
+      a.download = `上海美食分析报告_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      message.success('报告已下载')
+    } catch (e) {
+      message.error('导出失败：' + e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div style={S.page}>
       {/* 顶部标题栏 */}
@@ -47,6 +77,21 @@ export default function Dashboard() {
         <div style={S.headerRight}>
           <span style={S.navLink} onClick={() => navigate('/search')}>餐厅搜索</span>
           <span style={S.divider}>|</span>
+          <span style={S.navLink} onClick={() => navigate('/import')}>数据导入</span>
+          <span style={S.divider}>|</span>
+          <span style={S.navLink} onClick={() => navigate('/predict')}>评分预测</span>
+          <span style={S.divider}>|</span>
+          <span style={S.navLink} onClick={() => navigate('/clean-logs')}>清洗日志</span>
+          <span style={S.divider}>|</span>
+          <Button
+            size="small"
+            icon={exporting ? <LoadingOutlined /> : <DownloadOutlined />}
+            loading={exporting}
+            onClick={handleExportReport}
+            style={{ background: '#e63946', borderColor: '#e63946', color: '#fff', marginRight: 8 }}
+          >
+            导出报告
+          </Button>
           <span style={S.navLink} onClick={handleLogout}>退出登录</span>
         </div>
       </header>

@@ -129,6 +129,26 @@ from .api.v1 import analysis
 
 app.include_router(analysis.router, prefix="/api/v1", tags=["数据分析"])
 
+# 数据导入模块
+from .api.v1 import data_import
+
+app.include_router(data_import.router, prefix="/api/v1", tags=["数据导入"])
+
+# 机器学习预测模块
+from .api.v1 import ml_predict
+
+app.include_router(ml_predict.router, prefix="/api/v1", tags=["机器学习预测"])
+
+# 数据清洗日志模块
+from .api.v1 import clean_logs
+
+app.include_router(clean_logs.router, prefix="/api/v1", tags=["数据清洗日志"])
+
+# 报告导出模块
+from .api.v1 import export_report
+
+app.include_router(export_report.router, prefix="/api/v1", tags=["报告导出"])
+
 
 # === 根路径 ===
 
