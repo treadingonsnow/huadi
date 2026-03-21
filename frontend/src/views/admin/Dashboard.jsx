@@ -40,26 +40,31 @@ export default function Dashboard() {
 
   const handleExportReport = async () => {
     setExporting(true)
+    message.loading({ content: '正在生成报告，请稍候…', key: 'export', duration: 0 })
     try {
       const res = await fetch('/api/v1/report/generate', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       })
       if (!res.ok) {
-        const json = await res.json()
-        message.error(json.message || '报告生成失败')
+        let errMsg = `报告生成失败 (HTTP ${res.status})`
+        try { const j = await res.json(); errMsg = j.message || errMsg } catch {}
+        message.error({ content: errMsg, key: 'export' })
         return
       }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
+      a.style.display = 'none'
       const now = new Date()
       a.download = `上海美食分析报告_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`
+      document.body.appendChild(a)   // 必须插入 DOM 才能触发下载
       a.click()
-      URL.revokeObjectURL(url)
-      message.success('报告已下载')
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 30000)  // 延迟释放，确保下载完成
+      message.success({ content: '报告已下载', key: 'export' })
     } catch (e) {
-      message.error('导出失败：' + e.message)
+      message.error({ content: '导出失败：' + e.message, key: 'export' })
     } finally {
       setExporting(false)
     }

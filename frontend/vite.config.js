@@ -20,7 +20,9 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true
+        changeOrigin: true,
+        timeout: 120000,        // 2分钟，PDF 生成可能需要一段时间
+        proxyTimeout: 120000,
       }
     }
   }

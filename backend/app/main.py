@@ -5,6 +5,14 @@
 # - 配置全局异常处理器
 # - 应用启动/关闭时的生命周期事件（数据库连接池初始化、Redis 连接等）
 
+import sys
+import os
+
+# 将项目根目录加入 sys.path，确保 config/ 等顶层包可被导入
+_project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

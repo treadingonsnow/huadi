@@ -75,10 +75,10 @@ def login(
     user = db.query(User).filter(User.username == req.username).first()
 
     if not user or not user.is_active:
-        return error(message="用户名或密码错误", code=401)
+        return {"code": 401, "message": "用户名或密码错误", "data": None}
 
     if not verify_password(req.password, user.password_hash):
-        return error(message="用户名或密码错误", code=401)
+        return {"code": 401, "message": "用户名或密码错误", "data": None}
 
     # 生成 Token
     access_token = create_access_token(
