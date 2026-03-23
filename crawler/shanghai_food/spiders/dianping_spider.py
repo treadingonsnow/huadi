@@ -9,26 +9,18 @@ from DrissionPage import ChromiumPage, ChromiumOptions
 from DataRecorder import Recorder
 from loguru import logger
 
-
+# 配置文件路径
 EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 SEEN_URLS_FILE = 'seen_shop_urls.txt'
 TARGET_COUNT = 50
+EXISTING_CSV_FILE = '大众点评_上海美食_20260323_153608.csv'
 
-# 新的目标菜系：海鲜，烧烤，火锅等
-TARGET_CUISINES = [
-    '海鲜',
-    '烧烤',
-    '烧烤海鲜',
-    '海鲜自助'
-]
-
-
-def create_csv(keyword: str):
+# 创建/追加CSV文件
+def create_csv():
     """如果文件已存在就继续追加，不覆盖旧文件"""
-    filename = f'{keyword.strip() or "data"}.csv'
-    file_exists = os.path.exists(filename)
+    file_exists = os.path.exists(EXISTING_CSV_FILE)
 
-    recorder = Recorder(filename)
+    recorder = Recorder(EXISTING_CSV_FILE)
     recorder.set.show_msg(False)
 
     if not file_exists:
@@ -52,33 +44,35 @@ def create_csv(keyword: str):
             '创建时间',
             '更新时间'
         ]])
-        logger.info(f'新建CSV文件: {filename}')
+        logger.info(f'新建CSV文件: {EXISTING_CSV_FILE}')
     else:
-        logger.info(f'追加写入已有CSV文件: {filename}')
+        logger.info(f'追加写入已有CSV文件: {EXISTING_CSV_FILE}')
 
-    return recorder, filename
+    return recorder
 
 
+# 加载历史已抓取店铺链接
 def load_seen_urls(file_path=SEEN_URLS_FILE):
-    """读取历史已抓取链接"""
     if not os.path.exists(file_path):
         return set()
     with open(file_path, 'r', encoding='utf-8') as f:
         return set(line.strip() for line in f if line.strip())
 
 
+# 追加保存已抓取的店铺链接
 def append_seen_url(url, file_path=SEEN_URLS_FILE):
-    """追加保存已抓取链接"""
     with open(file_path, 'a', encoding='utf-8') as f:
         f.write(url + '\n')
 
 
+# 清理空白字符
 def clean_text(text):
     if not text:
         return ''
     return re.sub(r'\s+', ' ', str(text)).strip()
 
 
+# 提取第一个数字
 def extract_first_number(text):
     if not text:
         return ''
@@ -86,6 +80,7 @@ def extract_first_number(text):
     return m.group(1) if m else ''
 
 
+# 提取电话
 def extract_phone(text):
     if not text:
         return ''
@@ -102,16 +97,16 @@ def extract_phone(text):
     return ''
 
 
+# 启动浏览器
 def get_page():
-    """启动Edge浏览器"""
     co = ChromiumOptions()
     co.set_browser_path(EDGE_PATH)
     page = ChromiumPage(addr_or_opts=co)
     return page
 
 
+# 收集店铺链接
 def collect_shop_links(page, max_scroll=12):
-    """在列表页滚动，收集店铺详情页链接"""
     shop_links = set()
 
     for i in range(max_scroll):
@@ -132,17 +127,19 @@ def collect_shop_links(page, max_scroll=12):
                 continue
 
         logger.info(f'当前累计店铺链接数: {len(shop_links)}')
+
         try:
             page.scroll.to_bottom()
         except Exception:
             pass
+
         time.sleep(2)
 
     return list(shop_links)
 
 
+# 提取店铺ID
 def extract_shop_id(url):
-    """从URL中提取店铺ID"""
     if not url:
         return ''
     m = re.search(r'/shop/(\d+)', url)
@@ -152,8 +149,8 @@ def extract_shop_id(url):
     return path.rstrip('/').split('/')[-1] if path else ''
 
 
+# 根据多个选择器提取文本
 def find_text_by_selectors(page, selectors):
-    """按多个选择器依次尝试提取文本"""
     for loc in selectors:
         try:
             ele = page.ele(loc, timeout=2)
@@ -166,8 +163,8 @@ def find_text_by_selectors(page, selectors):
     return ''
 
 
+# 根据多个正则表达式提取HTML中的文本
 def find_html_by_patterns(html, patterns):
-    """按多个正则依次尝试提取文本"""
     for p in patterns:
         m = re.search(p, html, re.S)
         if m:
@@ -177,6 +174,7 @@ def find_html_by_patterns(html, patterns):
     return ''
 
 
+# 提取行政区
 def extract_district(address):
     districts = [
         "黄浦区", "徐汇区", "长宁区", "静安区", "普陀区", "虹口区", "杨浦区",
@@ -189,6 +187,7 @@ def extract_district(address):
     return ''
 
 
+# 提取商圈
 def extract_business_area(address, html):
     common_areas = [
         "陆家嘴", "人民广场", "南京东路", "南京西路", "徐家汇", "淮海路", "五角场",
@@ -202,6 +201,7 @@ def extract_business_area(address, html):
     return ''
 
 
+# 提取经纬度
 def extract_lat_lng_from_html(html):
     patterns = [
         r'"lat"\s*:\s*"?(?P<lat>\d+\.\d+)"?.*?"lng"\s*:\s*"?(?P<lng>\d+\.\d+)"?',
@@ -215,6 +215,7 @@ def extract_lat_lng_from_html(html):
     return '', ''
 
 
+# 提取地铁距离
 def extract_subway_distance(html):
     patterns = [
         r'地铁.*?(\d+)\s*米',
@@ -228,6 +229,7 @@ def extract_subway_distance(html):
     return ''
 
 
+# 解析店铺详情页
 def parse_shop_detail(page, url):
     logger.info(f'进入详情页: {url}')
     page.get(url)
@@ -243,6 +245,11 @@ def parse_shop_detail(page, url):
         '.shop-name',
         'xpath://h1',
     ])
+    # 如果餐厅名称是 Forbidden，直接跳过
+    if name == "Forbidden":
+        logger.warning(f"店铺 {url} 名称为 Forbidden，跳过！")
+        return None
+
     if not name:
         name = find_html_by_patterns(html, [
             r'<h1[^>]*>(.*?)</h1>',
@@ -344,7 +351,7 @@ def parse_shop_detail(page, url):
 
     now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    return {
+    data = {
         '餐厅唯一标识': restaurant_id,
         '餐厅名称': name,
         '餐厅地址': address,
@@ -364,23 +371,14 @@ def parse_shop_detail(page, url):
         '创建时间': now_time,
         '更新时间': now_time
     }
-
-
-def is_target_cuisine(data):
-    """只保留海鲜，烧烤，火锅等目标菜系"""
-    target_text = ' '.join([
-        str(data.get('餐厅名称', '') or ''),
-        str(data.get('菜系类型', '') or ''),
-        str(data.get('餐厅地址', '') or '')
-    ])
-    return any(keyword in target_text for keyword in TARGET_CUISINES)
+    return data
 
 
 def main():
-    keyword = '大众点评_上海海鲜烧烤'
+    keyword = '大众点评_上海餐饮'
     start_url = 'https://www.dianping.com/shanghai/ch10/g110'
 
-    recorder, filename = create_csv(keyword)
+    recorder = create_csv()
     page = get_page()
 
     logger.info('打开大众点评上海美食页')
@@ -415,12 +413,17 @@ def main():
             logger.info(f'开始采集第 {success_count + 1} 家店铺: {link}')
             data = parse_shop_detail(page, link)
 
+            if not data:
+                logger.warning(f"店铺 {link} 不符合要求，跳过！")
+                continue
+
             if not data.get('餐厅名称') and not data.get('餐厅地址'):
                 logger.warning(f'跳过空数据店铺: {link}')
                 continue
 
-            if not is_target_cuisine(data):
-                logger.info(f'跳过非目标菜系店铺: {data.get("餐厅名称", "")} | 菜系: {data.get("菜系类型", "")}')
+            # 跳过火锅店铺
+            if data.get('餐厅名称') == "403 Forbidden":
+                logger.warning(f"店铺 {link} 名称为 403 Forbidden，跳过！")
                 continue
 
             recorder.add_data([[
@@ -447,15 +450,14 @@ def main():
             append_seen_url(link)
             seen_urls.add(link)
             success_count += 1
-            logger.info(f'已成功采集 {success_count} 家符合要求的店铺')
             time.sleep(2)
 
         except Exception as e:
             logger.error(f'采集失败: {link} | 错误: {e}')
             continue
 
-    logger.info(f'采集结束，本次成功采集 {success_count} 家海鲜烧烤店铺')
-    logger.info(f'数据已写入文件: {filename}')
+    logger.info(f'采集结束，本次成功采集 {success_count} 家餐饮店铺')
+    logger.info(f'数据已写入文件: {EXISTING_CSV_FILE}')
 
 
 if __name__ == '__main__':
