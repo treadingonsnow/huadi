@@ -1,49 +1,462 @@
-# 大众点评爬虫
-# 数据源：dianping.com
-# 采集内容：
-# - 餐厅基础信息：店名、地址、电话、营业时间、人均消费
-# - 评分数据：口味/环境/服务/综合评分
-# - 用户评论：评论内容、评论时间、用户等级、点赞数
-# - 菜品信息：招牌菜、菜品图片、菜品价格
-# - 标签信息：菜系、适合场景、特色服务
-# - 地理位置：经纬度、所属商圈、地铁站距离
-# 采集方式：Scrapy + Selenium（处理动态加载和字体加密）
-# 更新策略：每日增量采集新评论，每周全量更新餐厅信息
-# 反爬应对：字体反爬解密、CSS偏移处理、验证码识别
+import os
+import re
+import time
+import random
+from datetime import datetime
+from urllib.parse import urljoin, urlparse
+
+from DrissionPage import ChromiumPage, ChromiumOptions
+from DataRecorder import Recorder
+from loguru import logger
 
 
-import scrapy
-from ..items import RestaurantItem
-# from ..items import RestaurantItem
+EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+SEEN_URLS_FILE = 'seen_shop_urls.txt'
+TARGET_COUNT = 50
 
-class DianpingSpider(scrapy.Spider):
-    # 新爬虫名称，和美团爬虫完全隔离
-    name = "dianping_spider"
-    # 大众点评上海餐饮列表页（静态数据，无反爬）
-    start_urls = ["https://www.dianping.com/shanghai/food/"]
+# 新的目标菜系：海鲜，烧烤，火锅等
+TARGET_CUISINES = [
+    '海鲜',
+    '烧烤',
+    '烧烤海鲜',
+    '海鲜自助'
+]
 
-    def start_requests(self):
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Referer": "https://www.dianping.com/",
-            "Accept-Language": "zh-CN,zh;q=0.9"
-        }
-        for url in self.start_urls:
-            yield scrapy.Request(url=url, headers=headers, callback=self.parse)
 
-    def parse(self, response):
-        self.logger.info(f"✅ 访问状态：{response.status}")
-        self.logger.info(f"✅ 页面标题：{response.xpath('//title/text()').get(default='无标题')}")
+def create_csv(keyword: str):
+    """如果文件已存在就继续追加，不覆盖旧文件"""
+    filename = f'{keyword.strip() or "data"}.csv'
+    file_exists = os.path.exists(filename)
 
-        # 适配大众点评的餐厅列表 XPath
-        for shop in response.xpath('//div[contains(@class, "shop-list")]//li'):
-            item = RestaurantItem()
-            item['name'] = shop.xpath('.//h4[@class="shop-name"]//text()').get(default="").strip()
-            item['address'] = shop.xpath('.//p[@class="addr"]//text()').get(default="").strip()
-            item['rating'] = shop.xpath('.//span[@class="score"]//text()').get(default="0").strip()
-            item['avg_price'] = shop.xpath('.//span[@class="price"]//text()').get(default="0").strip()
-            item['cuisine'] = shop.xpath('.//span[@class="tag"]//text()').get(default="未知菜系").strip()
+    recorder = Recorder(filename)
+    recorder.set.show_msg(False)
 
-            if item['name']:
-                self.logger.info(f"✅ 爬取到：{item['name']} | 评分：{item['rating']} | 人均：{item['avg_price']}")
-                yield item
+    if not file_exists:
+        recorder.add_data([[
+            '餐厅唯一标识',
+            '餐厅名称',
+            '餐厅地址',
+            '联系电话',
+            '营业时间',
+            '人均消费',
+            '综合评分',
+            '评论总数',
+            '菜系类型',
+            '所在行政区',
+            '所属商圈',
+            '纬度',
+            '经度',
+            '最近地铁距离（米）',
+            '数据来源',
+            '采集时间',
+            '创建时间',
+            '更新时间'
+        ]])
+        logger.info(f'新建CSV文件: {filename}')
+    else:
+        logger.info(f'追加写入已有CSV文件: {filename}')
+
+    return recorder, filename
+
+
+def load_seen_urls(file_path=SEEN_URLS_FILE):
+    """读取历史已抓取链接"""
+    if not os.path.exists(file_path):
+        return set()
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return set(line.strip() for line in f if line.strip())
+
+
+def append_seen_url(url, file_path=SEEN_URLS_FILE):
+    """追加保存已抓取链接"""
+    with open(file_path, 'a', encoding='utf-8') as f:
+        f.write(url + '\n')
+
+
+def clean_text(text):
+    if not text:
+        return ''
+    return re.sub(r'\s+', ' ', str(text)).strip()
+
+
+def extract_first_number(text):
+    if not text:
+        return ''
+    m = re.search(r'(\d+(\.\d+)?)', str(text))
+    return m.group(1) if m else ''
+
+
+def extract_phone(text):
+    if not text:
+        return ''
+    patterns = [
+        r'(\d{3}\*{4}\d{4})',
+        r'(\d{3,4}-\d{7,8})',
+        r'(\d{11})',
+        r'(\d{3,4}\s?\d{4}\s?\d{4})',
+    ]
+    for p in patterns:
+        m = re.search(p, text)
+        if m:
+            return clean_text(m.group(1))
+    return ''
+
+
+def get_page():
+    """启动Edge浏览器"""
+    co = ChromiumOptions()
+    co.set_browser_path(EDGE_PATH)
+    page = ChromiumPage(addr_or_opts=co)
+    return page
+
+
+def collect_shop_links(page, max_scroll=12):
+    """在列表页滚动，收集店铺详情页链接"""
+    shop_links = set()
+
+    for i in range(max_scroll):
+        logger.info(f'第 {i + 1} 次滚动采集链接')
+        time.sleep(2)
+
+        links = page.eles('tag:a')
+        for a in links:
+            try:
+                href = a.attr('href')
+                if not href:
+                    continue
+                if '/shop/' in href:
+                    full_url = urljoin('https://www.dianping.com', href)
+                    if 'dianping.com/shop/' in full_url:
+                        shop_links.add(full_url.split('?')[0])
+            except Exception:
+                continue
+
+        logger.info(f'当前累计店铺链接数: {len(shop_links)}')
+        try:
+            page.scroll.to_bottom()
+        except Exception:
+            pass
+        time.sleep(2)
+
+    return list(shop_links)
+
+
+def extract_shop_id(url):
+    """从URL中提取店铺ID"""
+    if not url:
+        return ''
+    m = re.search(r'/shop/(\d+)', url)
+    if m:
+        return m.group(1)
+    path = urlparse(url).path
+    return path.rstrip('/').split('/')[-1] if path else ''
+
+
+def find_text_by_selectors(page, selectors):
+    """按多个选择器依次尝试提取文本"""
+    for loc in selectors:
+        try:
+            ele = page.ele(loc, timeout=2)
+            if ele:
+                text = clean_text(ele.text)
+                if text:
+                    return text
+        except Exception:
+            continue
+    return ''
+
+
+def find_html_by_patterns(html, patterns):
+    """按多个正则依次尝试提取文本"""
+    for p in patterns:
+        m = re.search(p, html, re.S)
+        if m:
+            text = clean_text(m.group(1))
+            if text:
+                return text
+    return ''
+
+
+def extract_district(address):
+    districts = [
+        "黄浦区", "徐汇区", "长宁区", "静安区", "普陀区", "虹口区", "杨浦区",
+        "闵行区", "宝山区", "嘉定区", "浦东新区", "金山区", "松江区",
+        "青浦区", "奉贤区", "崇明区"
+    ]
+    for d in districts:
+        if d in address:
+            return d
+    return ''
+
+
+def extract_business_area(address, html):
+    common_areas = [
+        "陆家嘴", "人民广场", "南京东路", "南京西路", "徐家汇", "淮海路", "五角场",
+        "中山公园", "静安寺", "新天地", "豫园", "打浦桥", "田子坊", "七宝",
+        "虹桥", "莘庄", "川沙", "张江", "世博源", "外滩", "北外滩", "前滩"
+    ]
+    whole_text = f'{address} {html}'
+    for area in common_areas:
+        if area in whole_text:
+            return area
+    return ''
+
+
+def extract_lat_lng_from_html(html):
+    patterns = [
+        r'"lat"\s*:\s*"?(?P<lat>\d+\.\d+)"?.*?"lng"\s*:\s*"?(?P<lng>\d+\.\d+)"?',
+        r'"latitude"\s*:\s*"?(?P<lat>\d+\.\d+)"?.*?"longitude"\s*:\s*"?(?P<lng>\d+\.\d+)"?',
+        r'(?P<lat>\d{2}\.\d+)\s*,\s*(?P<lng>\d{3}\.\d+)',
+    ]
+    for p in patterns:
+        m = re.search(p, html, re.S)
+        if m:
+            return m.group('lat'), m.group('lng')
+    return '', ''
+
+
+def extract_subway_distance(html):
+    patterns = [
+        r'地铁.*?(\d+)\s*米',
+        r'(\d+)\s*米.*?地铁',
+        r'距离地铁.*?(\d+)\s*米',
+    ]
+    for p in patterns:
+        m = re.search(p, html, re.S)
+        if m:
+            return m.group(1)
+    return ''
+
+
+def parse_shop_detail(page, url):
+    logger.info(f'进入详情页: {url}')
+    page.get(url)
+    time.sleep(3)
+
+    html = page.html or ''
+    page_text = clean_text(html)
+
+    restaurant_id = extract_shop_id(url)
+
+    name = find_text_by_selectors(page, [
+        'tag:h1',
+        '.shop-name',
+        'xpath://h1',
+    ])
+    if not name:
+        name = find_html_by_patterns(html, [
+            r'<h1[^>]*>(.*?)</h1>',
+            r'"shopName"\s*:\s*"(.*?)"',
+            r'"name"\s*:\s*"(.*?)"',
+        ])
+
+    address = find_text_by_selectors(page, [
+        'xpath://*[contains(text(),"地址")]',
+        '.address',
+        '.shop-address',
+        'xpath://*[contains(@class,"address")]',
+    ])
+    if not address:
+        address = find_html_by_patterns(html, [
+            r'地址[:：]?\s*([^<\n\r]+)',
+            r'"address"\s*:\s*"(.*?)"',
+        ])
+
+    phone = find_text_by_selectors(page, [
+        'xpath://*[contains(text(),"电话")]',
+        '.phone',
+        '.tel',
+    ])
+    if not phone:
+        phone = find_html_by_patterns(html, [
+            r'电话[:：]?\s*([^<\n\r]+)',
+            r'"phoneNo"\s*:\s*"(.*?)"',
+            r'"phone"\s*:\s*"(.*?)"',
+        ])
+    phone = extract_phone(phone) or extract_phone(page_text)
+
+    business_hours = find_text_by_selectors(page, [
+        'xpath://*[contains(text(),"营业时间")]',
+        '.business-hours',
+        '.hours',
+    ])
+    if not business_hours:
+        business_hours = find_html_by_patterns(html, [
+            r'营业时间[:：]?\s*([^<\n\r]+)',
+            r'"openTime"\s*:\s*"(.*?)"',
+            r'"businessHours"\s*:\s*"(.*?)"',
+        ])
+
+    avg_price = find_text_by_selectors(page, [
+        'xpath://*[contains(text(),"人均")]',
+        '.price',
+        '.average',
+    ])
+    if not avg_price:
+        avg_price = find_html_by_patterns(html, [
+            r'人均[:：]?\s*[¥￥]?(\d+)',
+            r'"avgPrice"\s*:\s*"?(.*?)"?(,|})',
+        ])
+    avg_price = extract_first_number(avg_price)
+
+    score = find_text_by_selectors(page, [
+        '.score',
+        'xpath://*[contains(text(),"评分")]',
+        '.star-score',
+    ])
+    if not score:
+        score = find_html_by_patterns(html, [
+            r'"score"\s*:\s*"?(.*?)"?(,|})',
+            r'(\d\.\d)',
+        ])
+    score = extract_first_number(score)
+
+    review_count = find_text_by_selectors(page, [
+        'xpath://*[contains(text(),"评论")]',
+        '.review-count',
+        '.comment',
+    ])
+    if not review_count:
+        review_count = find_html_by_patterns(html, [
+            r'评论[（(]?(\d+)[）)]?',
+            r'"reviewCount"\s*:\s*"?(.*?)"?(,|})',
+            r'"commentCount"\s*:\s*"?(.*?)"?(,|})',
+        ])
+    review_count = extract_first_number(review_count)
+
+    cuisine = find_text_by_selectors(page, [
+        'xpath://*[contains(text(),"分类")]',
+        '.category',
+        '.breadcrumb',
+        '.shop-tag',
+    ])
+    if not cuisine:
+        cuisine = find_html_by_patterns(html, [
+            r'分类[:：]?\s*([^<\n\r]+)',
+            r'"categoryName"\s*:\s*"(.*?)"',
+            r'"category"\s*:\s*"(.*?)"',
+        ])
+
+    district = extract_district(address)
+    business_area = extract_business_area(address, html)
+    latitude, longitude = extract_lat_lng_from_html(html)
+    nearest_subway_distance = extract_subway_distance(html)
+
+    now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    return {
+        '餐厅唯一标识': restaurant_id,
+        '餐厅名称': name,
+        '餐厅地址': address,
+        '联系电话': phone,
+        '营业时间': business_hours,
+        '人均消费': avg_price,
+        '综合评分': score,
+        '评论总数': review_count,
+        '菜系类型': cuisine,
+        '所在行政区': district,
+        '所属商圈': business_area,
+        '纬度': latitude,
+        '经度': longitude,
+        '最近地铁距离（米）': nearest_subway_distance,
+        '数据来源': 'dianping',
+        '采集时间': now_time,
+        '创建时间': now_time,
+        '更新时间': now_time
+    }
+
+
+def is_target_cuisine(data):
+    """只保留海鲜，烧烤，火锅等目标菜系"""
+    target_text = ' '.join([
+        str(data.get('餐厅名称', '') or ''),
+        str(data.get('菜系类型', '') or ''),
+        str(data.get('餐厅地址', '') or '')
+    ])
+    return any(keyword in target_text for keyword in TARGET_CUISINES)
+
+
+def main():
+    keyword = '大众点评_上海海鲜烧烤'
+    start_url = 'https://www.dianping.com/shanghai/ch10/g110'
+
+    recorder, filename = create_csv(keyword)
+    page = get_page()
+
+    logger.info('打开大众点评上海美食页')
+    page.get(start_url)
+    time.sleep(5)
+
+    logger.info(f'当前页面标题: {page.title}')
+    logger.info(f'当前页面URL: {page.url}')
+
+    shop_links = collect_shop_links(page, max_scroll=12)
+    logger.info(f'最终采集到店铺链接数: {len(shop_links)}')
+
+    if not shop_links:
+        logger.warning('没有采集到任何店铺链接，请检查页面结构或是否被限制访问。')
+        return
+
+    seen_urls = load_seen_urls()
+    logger.info(f'历史已抓取链接数: {len(seen_urls)}')
+
+    random.shuffle(shop_links)
+
+    success_count = 0
+
+    for link in shop_links:
+        if success_count >= TARGET_COUNT:
+            break
+
+        if link in seen_urls:
+            continue
+
+        try:
+            logger.info(f'开始采集第 {success_count + 1} 家店铺: {link}')
+            data = parse_shop_detail(page, link)
+
+            if not data.get('餐厅名称') and not data.get('餐厅地址'):
+                logger.warning(f'跳过空数据店铺: {link}')
+                continue
+
+            if not is_target_cuisine(data):
+                logger.info(f'跳过非目标菜系店铺: {data.get("餐厅名称", "")} | 菜系: {data.get("菜系类型", "")}')
+                continue
+
+            recorder.add_data([[
+                data.get('餐厅唯一标识', ''),
+                data.get('餐厅名称', ''),
+                data.get('餐厅地址', ''),
+                data.get('联系电话', ''),
+                data.get('营业时间', ''),
+                data.get('人均消费', ''),
+                data.get('综合评分', ''),
+                data.get('评论总数', ''),
+                data.get('菜系类型', ''),
+                data.get('所在行政区', ''),
+                data.get('所属商圈', ''),
+                data.get('纬度', ''),
+                data.get('经度', ''),
+                data.get('最近地铁距离（米）', ''),
+                data.get('数据来源', ''),
+                data.get('采集时间', ''),
+                data.get('创建时间', ''),
+                data.get('更新时间', '')
+            ]])
+
+            append_seen_url(link)
+            seen_urls.add(link)
+            success_count += 1
+            logger.info(f'已成功采集 {success_count} 家符合要求的店铺')
+            time.sleep(2)
+
+        except Exception as e:
+            logger.error(f'采集失败: {link} | 错误: {e}')
+            continue
+
+    logger.info(f'采集结束，本次成功采集 {success_count} 家海鲜烧烤店铺')
+    logger.info(f'数据已写入文件: {filename}')
+
+
+if __name__ == '__main__':
+    main()
