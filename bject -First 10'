@@ -1,0 +1,410 @@
+[1mdiff --git a/backend/app/api/v1/analysis.py b/backend/app/api/v1/analysis.py[m
+[1mindex 70632b5..92c4c98 100644[m
+[1m--- a/backend/app/api/v1/analysis.py[m
+[1m+++ b/backend/app/api/v1/analysis.py[m
+[36m@@ -1,7 +1,89 @@[m
+[31m-# 数据分析 API 路由[m
+[31m-# 功能：[m
+[31m-# - GET /area          区域分析（商圈餐厅密度、区域菜系分布、区域消费水平、热力图数据）[m
+[31m-# - GET /price         价格分析（价格区间分布、菜系价格对比、价格趋势、性价比排行）[m
+[31m-# - GET /review        口碑分析（评分分布、情感分析结果、热门菜品、关键词词云数据）[m
+[31m-# - GET /trend         趋势分析（菜系流行趋势、新店开业趋势、消费趋势预测、季节性分析）[m
+[31m-# - GET /competitor    竞品分析（同类餐厅对比、优劣势分析、市场份额、SWOT分析）[m
+[32m+[m[32mfrom __future__ import annotations[m
+[32m+[m
+[32m+[m[32mfrom typing import Any[m
+[32m+[m
+[32m+[m[32mfrom fastapi import APIRouter, Depends, HTTPException[m
+[32m+[m[32mfrom sqlalchemy.orm import Session[m
+[32m+[m
+[32m+[m[32mfrom app.services.analysis_service import AnalysisService[m
+[32m+[m
+[32m+[m[32mtry:[m
+[32m+[m[32m    from app.core.deps import get_db as _get_db[m
+[32m+[m[32mexcept Exception:[m
+[32m+[m[32m    _get_db = None[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef get_db() -> Any:[m
+[32m+[m[32m    if _get_db is None:[m
+[32m+[m[32m        raise RuntimeError("get_db dependency is not configured")[m
+[32m+[m[32m    return _get_db()[m
+[32m+[m
+[32m+[m
+[32m+[m[32mrouter = APIRouter(prefix="/analysis", tags=["analysis"])[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef success(data: Any) -> dict[str, Any]:[m
+[32m+[m[32m    return {"code": 200, "message": "success", "data": data}[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/overview")[m
+[32m+[m[32mdef get_overview(db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_overview())[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取概览数据失败: {exc}") from exc[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/area-distribution")[m
+[32m+[m[32mdef get_area_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_area_distribution())[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取区域分布失败: {exc}") from exc[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/cuisine-distribution")[m
+[32m+[m[32mdef get_cuisine_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_cuisine_distribution())[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取菜系分布失败: {exc}") from exc[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/price-distribution")[m
+[32m+[m[32mdef get_price_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_price_distribution())[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取价格分布失败: {exc}") from exc[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/rating-distribution")[m
+[32m+[m[32mdef get_rating_distribution(db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_rating_distribution())[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取评分分布失败: {exc}") from exc[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/area-avg-price")[m
+[32m+[m[32mdef get_area_avg_price(db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_area_avg_price())[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取各区均价失败: {exc}") from exc[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/review-keywords")[m
+[32m+[m[32mdef get_review_keywords(limit: int = 30, db: Session = Depends(get_db)) -> dict[str, Any]:[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = AnalysisService(db)[m
+[32m+[m[32m        return success(service.get_review_keywords(limit=limit))[m
+[32m+[m[32m    except Exception as exc:[m
+[32m+[m[32m        raise HTTPException(status_code=500, detail=f"获取口碑关键词失败: {exc}") from exc[m
+[1mdiff --git a/backend/app/schemas/analysis.py b/backend/app/schemas/analysis.py[m
+[1mindex 48055d5..c20cd39 100644[m
+[1m--- a/backend/app/schemas/analysis.py[m
+[1m+++ b/backend/app/schemas/analysis.py[m
+[36m@@ -1,7 +1,66 @@[m
+[31m-# 数据分析相关 Pydantic Schema[m
+[31m-# 包含：[m
+[31m-# - AreaAnalysisResponse       区域分析结果（商圈密度、菜系分布、消费水平、热力图数据）[m
+[31m-# - PriceAnalysisResponse      价格分析结果（价格区间分布、菜系价格对比、趋势数据、性价比排行）[m
+[31m-# - ReviewAnalysisResponse     口碑分析结果（评分分布、情感分析、热门菜品、词云数据）[m
+[31m-# - TrendAnalysisResponse      趋势分析结果（菜系趋势、新店趋势、消费预测、季节性数据）[m
+[31m-# - CompetitorAnalysisResponse 竞品分析结果（对比数据、优劣势、市场份额、SWOT）[m
+[32m+[m[32mfrom __future__ import annotations[m
+[32m+[m
+[32m+[m[32mfrom pydantic import BaseModel[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass OverviewData(BaseModel):[m
+[32m+[m[32m    total_count: int[m
+[32m+[m[32m    avg_rating: float[m
+[32m+[m[32m    avg_price: float[m
+[32m+[m[32m    district_count: int[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass DistrictCount(BaseModel):[m
+[32m+[m[32m    name: str[m
+[32m+[m[32m    count: int[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass CuisineCount(BaseModel):[m
+[32m+[m[32m    name: str[m
+[32m+[m[32m    count: int[m
+[32m+[m[32m    percentage: float[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass PriceRangeCount(BaseModel):[m
+[32m+[m[32m    label: str[m
+[32m+[m[32m    count: int[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass RatingRangeCount(BaseModel):[m
+[32m+[m[32m    range: str[m
+[32m+[m[32m    count: int[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass DistrictAvgPrice(BaseModel):[m
+[32m+[m[32m    name: str[m
+[32m+[m[32m    avg_price: float[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass KeywordCount(BaseModel):[m
+[32m+[m[32m    word: str[m
+[32m+[m[32m    count: int[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass AreaDistributionData(BaseModel):[m
+[32m+[m[32m    districts: list[DistrictCount][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass CuisineDistributionData(BaseModel):[m
+[32m+[m[32m    cuisines: list[CuisineCount][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass PriceDistributionData(BaseModel):[m
+[32m+[m[32m    ranges: list[PriceRangeCount][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass RatingDistributionData(BaseModel):[m
+[32m+[m[32m    ratings: list[RatingRangeCount][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass AreaAvgPriceData(BaseModel):[m
+[32m+[m[32m    districts: list[DistrictAvgPrice][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass ReviewKeywordsData(BaseModel):[m
+[32m+[m[32m    positive: list[KeywordCount][m
+[32m+[m[32m    negative: list[KeywordCount][m
+[1mdiff --git a/backend/app/services/analysis_service.py b/backend/app/services/analysis_service.py[m
+[1mindex 205f4e2..7f684ec 100644[m
+[1m--- a/backend/app/services/analysis_service.py[m
+[1m+++ b/backend/app/services/analysis_service.py[m
+[36m@@ -1,8 +1,222 @@[m
+[31m-# 数据分析业务服务[m
+[31m-# 功能：[m
+[31m-# - analyze_area()        区域分析（调用 analysis 模块，返回商圈密度/菜系分布/消费水平/热力图数据）[m
+[31m-# - analyze_price()       价格分析（价格区间分布、菜系价格对比、价格趋势、性价比排行）[m
+[31m-# - analyze_reviews()     口碑分析（评分分布、调用NLP情感分析、热门菜品、词云数据）[m
+[31m-# - analyze_trends()      趋势分析（菜系流行趋势、新店开业趋势、消费预测）[m
+[31m-# - analyze_competitors() 竞品分析（同类餐厅对比、优劣势、市场份额、SWOT）[m
+[31m-# 注意：分析结果使用 Redis 缓存，缓存过期时间根据数据更新频率设置[m
+[32m+[m[32mfrom __future__ import annotations[m
+[32m+[m
+[32m+[m[32mimport re[m
+[32m+[m[32mfrom collections import Counter[m
+[32m+[m[32mfrom functools import lru_cache[m
+[32m+[m[32mfrom typing import Any[m
+[32m+[m
+[32m+[m[32mimport jieba[m
+[32m+[m[32mfrom sqlalchemy import text[m
+[32m+[m[32mfrom sqlalchemy.orm import Session[m
+[32m+[m
+[32m+[m[32mfrom config.dictionaries.sentiment_dict import SENTIMENT_DICT[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass AnalysisService:[m
+[32m+[m[32m    PRICE_RANGES = ([m
+[32m+[m[32m        ("50元以下", "avg_price > 0 AND avg_price <= 50"),[m
+[32m+[m[32m        ("51-100元", "avg_price > 50 AND avg_price <= 100"),[m
+[32m+[m[32m        ("101-200元", "avg_price > 100 AND avg_price <= 200"),[m
+[32m+[m[32m        ("200元以上", "avg_price > 200"),[m
+[32m+[m[32m    )[m
+[32m+[m[32m    RATING_RANGES = ([m
+[32m+[m[32m        ("3.0分以下", "rating_overall > 0 AND rating_overall < 3.0"),[m
+[32m+[m[32m        ("3.0-3.9分", "rating_overall >= 3.0 AND rating_overall < 4.0"),[m
+[32m+[m[32m        ("4.0-4.4分", "rating_overall >= 4.0 AND rating_overall < 4.5"),[m
+[32m+[m[32m        ("4.5-5.0分", "rating_overall >= 4.5 AND rating_overall <= 5.0"),[m
+[32m+[m[32m    )[m
+[32m+[m[32m    BASE_STOP_WORDS = {[m
+[32m+[m[32m        "真的",[m
+[32m+[m[32m        "就是",[m
+[32m+[m[32m        "这个",[m
+[32m+[m[32m        "那个",[m
+[32m+[m[32m        "还是",[m
+[32m+[m[32m        "我们",[m
+[32m+[m[32m        "你们",[m
+[32m+[m[32m        "他们",[m
+[32m+[m[32m        "感觉",[m
+[32m+[m[32m        "非常",[m
+[32m+[m[32m        "比较",[m
+[32m+[m[32m        "一个",[m
+[32m+[m[32m        "一点",[m
+[32m+[m[32m        "一下",[m
+[32m+[m[32m        "然后",[m
+[32m+[m[32m        "而且",[m
+[32m+[m[32m        "因为",[m
+[32m+[m[32m        "所以",[m
+[32m+[m[32m        "但是",[m
+[32m+[m[32m        "没有",[m
+[32m+[m[32m        "不是",[m
+[32m+[m[32m        "可以",[m
+[32m+[m[32m        "不会",[m
+[32m+[m[32m        "已经",[m
+[32m+[m[32m        "餐厅",[m
+[32m+[m[32m        "店里",[m
+[32m+[m[32m        "这家",[m
+[32m+[m[32m        "服务员",[m
+[32m+[m[32m    }[m
+[32m+[m[32m    CHINESE_WORD_PATTERN = re.compile(r"^[\u4e00-\u9fff]{2,}$")[m
+[32m+[m
+[32m+[m[32m    def __init__(self, db: Session) -> None:[m
+[32m+[m[32m        self.db = db[m
+[32m+[m
+[32m+[m[32m    def get_overview(self) -> dict[str, Any]:[m
+[32m+[m[32m        row = self.db.execute([m
+[32m+[m[32m            text([m
+[32m+[m[32m                """[m
+[32m+[m[32m                SELECT[m
+[32m+[m[32m                    COUNT(*) AS total_count,[m
+[32m+[m[32m                    COALESCE(ROUND(AVG(NULLIF(rating_overall, 0)), 2), 0) AS avg_rating,[m
+[32m+[m[32m                    COALESCE(ROUND(AVG(NULLIF(avg_price, 0)), 2), 0) AS avg_price,[m
+[32m+[m[32m                    COUNT(DISTINCT district) AS district_count[m
+[32m+[m[32m                FROM restaurant_info[m
+[32m+[m[32m                """[m
+[32m+[m[32m            )[m
+[32m+[m[32m        ).mappings().one()[m
+[32m+[m[32m        return dict(row)[m
+[32m+[m
+[32m+[m[32m    def get_area_distribution(self) -> dict[str, list[dict[str, Any]]]:[m
+[32m+[m[32m        rows = self.db.execute([m
+[32m+[m[32m            text([m
+[32m+[m[32m                """[m
+[32m+[m[32m                SELECT district AS name, COUNT(*) AS count[m
+[32m+[m[32m                FROM restaurant_info[m
+[32m+[m[32m                WHERE district IS NOT NULL AND district != ''[m
+[32m+[m[32m                GROUP BY district[m
+[32m+[m[32m                ORDER BY count DESC, district ASC[m
+[32m+[m[32m                """[m
+[32m+[m[32m            )[m
+[32m+[m[32m        ).mappings().all()[m
+[32m+[m[32m        return {"districts": [dict(row) for row in rows]}[m
+[32m+[m
+[32m+[m[32m    def get_cuisine_distribution(self) -> dict[str, list[dict[str, Any]]]:[m
+[32m+[m[32m        total = self.db.execute([m
+[32m+[m[32m            text("SELECT COUNT(*) FROM restaurant_info WHERE cuisine_type IS NOT NULL AND cuisine_type != ''")[m
+[32m+[m[32m        ).scalar_one()[m
+[32m+[m[32m        rows = self.db.execute([m
+[32m+[m[32m            text([m
+[32m+[m[32m                """[m
+[32m+[m[32m                SELECT cuisine_type AS name, COUNT(*) AS count[m
+[32m+[m[32m                FROM restaurant_info[m
+[32m+[m[32m                WHERE cuisine_type IS NOT NULL AND cuisine_type != ''[m
+[32m+[m[32m                GROUP BY cuisine_type[m
+[32m+[m[32m                ORDER BY count DESC, cuisine_type ASC[m
+[32m+[m[32m                """[m
+[32m+[m[32m            )[m
+[32m+[m[32m        ).mappings().all()[m
+[32m+[m[32m        cuisines: list[dict[str, Any]] = [][m
+[32m+[m[32m        for row in rows:[m
+[32m+[m[32m            count = int(row["count"])[m
+[32m+[m[32m            percentage = round((count / total) * 100, 2) if total else 0[m
+[32m+[m[32m            cuisines.append({"name": row["name"], "count": count, "percentage": percentage})[m
+[32m+[m[32m        return {"cuisines": cuisines}[m
+[32m+[m
+[32m+[m[32m    def get_price_distribution(self) -> dict[str, list[dict[str, Any]]]:[m
+[32m+[m[32m        ranges: list[dict[str, Any]] = [][m
+[32m+[m[32m        for label, condition in self.PRICE_RANGES:[m
+[32m+[m[32m            count = self.db.execute([m
+[32m+[m[32m                text(f"SELECT COUNT(*) FROM restaurant_info WHERE {condition}")[m
+[32m+[m[32m            ).scalar_one()[m
+[32m+[m[32m            ranges.append({"label": label, "count": int(count)})[m
+[32m+[m[32m        return {"ranges": ranges}[m
+[32m+[m
+[32m+[m[32m    def get_rating_distribution(self) -> dict[str, list[dict[str, Any]]]:[m
+[32m+[m[32m        ratings: list[dict[str, Any]] = [][m
+[32m+[m[32m        for label, condition in self.RATING_RANGES:[m
+[32m+[m[32m            count = self.db.execute([m
+[32m+[m[32m                text(f"SELECT COUNT(*) FROM restaurant_info WHERE {condition}")[m
+[32m+[m[32m            ).scalar_one()[m
+[32m+[m[32m            ratings.append({"range": label, "count": int(count)})[m
+[32m+[m[32m        return {"ratings": ratings}[m
+[32m+[m
+[32m+[m[32m    def get_area_avg_price(self) -> dict[str, list[dict[str, Any]]]:[m
+[32m+[m[32m        rows = self.db.execute([m
+[32m+[m[32m            text([m
+[32m+[m[32m                """[m
+[32m+[m[32m                SELECT district AS name, ROUND(AVG(avg_price), 2) AS avg_price[m
+[32m+[m[32m                FROM restaurant_info[m
+[32m+[m[32m                WHERE district IS NOT NULL[m
+[32m+[m[32m                  AND district != ''[m
+[32m+[m[32m                  AND avg_price > 0[m
+[32m+[m[32m                GROUP BY district[m
+[32m+[m[32m                ORDER BY avg_price DESC, district ASC[m
+[32m+[m[32m                """[m
+[32m+[m[32m            )[m
+[32m+[m[32m        ).mappings().all()[m
+[32m+[m[32m        return {"districts": [dict(row) for row in rows]}[m
+[32m+[m
+[32m+[m[32m    def get_review_keywords(self, limit: int = 30) -> dict[str, list[dict[str, Any]]]:[m
+[32m+[m[32m        positive_rows = self.db.execute([m
+[32m+[m[32m            text([m
+[32m+[m[32m                """[m
+[32m+[m[32m                SELECT review_content[m
+[32m+[m[32m                FROM restaurant_review[m
+[32m+[m[32m                WHERE review_content IS NOT NULL[m
+[32m+[m[32m                  AND review_content != ''[m
+[32m+[m[32m                  AND ([m
+[32m+[m[32m                    sentiment_score > 0[m
+[32m+[m[32m                    OR rating_overall >= 4[m
+[32m+[m[32m                  )[m
+[32m+[m[32m                ORDER BY review_time DESC[m
+[32m+[m[32m                LIMIT 5000[m
+[32m+[m[32m                """[m
+[32m+[m[32m            )[m
+[32m+[m[32m        ).scalars().all()[m
+[32m+[m[32m        negative_rows = self.db.execute([m
+[32m+[m[32m            text([m
+[32m+[m[32m                """[m
+[32m+[m[32m                SELECT review_content[m
+[32m+[m[32m                FROM restaurant_review[m
+[32m+[m[32m                WHERE review_content IS NOT NULL[m
+[32m+[m[32m                  AND review_content != ''[m
+[32m+[m[32m                  AND ([m
+[32m+[m[32m                    sentiment_score < 0[m
+[32m+[m[32m                    OR rating_overall <= 2.5[m
+[32m+[m[32m                  )[m
+[32m+[m[32m                ORDER BY review_time DESC[m
+[32m+[m[32m                LIMIT 5000[m
+[32m+[m[32m                """[m
+[32m+[m[32m            )[m
+[32m+[m[32m        ).scalars().all()[m
+[32m+[m[32m        positive = self._extract_keywords(positive_rows, limit, "正面")[m
+[32m+[m[32m        negative = self._extract_keywords(negative_rows, limit, "负面")[m
+[32m+[m[32m        return {"positive": positive, "negative": negative}[m
+[32m+[m
+[32m+[m[32m    @classmethod[m
+[32m+[m[32m    @lru_cache(maxsize=1)[m
+[32m+[m[32m    def _sentiment_words(cls) -> dict[str, set[str]]:[m
+[32m+[m[32m        words: dict[str, set[str]] = {}[m
+[32m+[m[32m        for polarity, dimensions in SENTIMENT_DICT.items():[m
+[32m+[m[32m            merged: set[str] = set()[m
+[32m+[m[32m            for vocab in dimensions.values():[m
+[32m+[m[32m                merged.update(vocab)[m
+[32m+[m[32m            words[polarity] = merged[m
+[32m+[m[32m        return words[m
+[32m+[m
+[32m+[m[32m    def _extract_keywords(self, texts: list[str], limit: int, polarity: str) -> list[dict[str, Any]]:[m
+[32m+[m[32m        counter: Counter[str] = Counter()[m
+[32m+[m[32m        sentiment_words = self._sentiment_words()[m
+[32m+[m[32m        target_words = sentiment_words.get(polarity, set())[m
+[32m+[m[32m        stop_words = self.BASE_STOP_WORDS[m
+[32m+[m[32m        for text_item in texts:[m
+[32m+[m[32m            for token in jieba.lcut(text_item):[m
+[32m+[m[32m                token = token.strip()[m
+[32m+[m[32m                if not token or token in stop_words:[m
+[32m+[m[32m                    continue[m
+[32m+[m[32m                if not self.CHINESE_WORD_PATTERN.match(token):[m
+[32m+[m[32m                    continue[m
+[32m+[m[32m                counter[token] += 1[m
+[32m+[m
+[32m+[m[32m        prioritized = [(word, counter[word]) for word in target_words if counter[word] > 0][m
+[32m+[m[32m        prioritized.sort(key=lambda item: item[1], reverse=True)[m
+[32m+[m[32m        selected = prioritized[:limit][m
+[32m+[m[32m        if len(selected) < limit:[m
+[32m+[m[32m            selected_words = {word for word, _ in selected}[m
+[32m+[m[32m            for word, count in counter.most_common(limit * 3):[m
+[32m+[m[32m                if word in selected_words:[m
+[32m+[m[32m                    continue[m
+[32m+[m[32m                selected.append((word, count))
