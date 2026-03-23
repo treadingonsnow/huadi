@@ -82,6 +82,22 @@ CREATE TABLE IF NOT EXISTS sys_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户表';
 
 -- ─────────────────────────────────────────────
+-- 3.5 用户收藏表
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_favorites (
+    user_id       INT           NOT NULL COMMENT '用户ID',
+    restaurant_id VARCHAR(50)   NOT NULL COMMENT '餐厅ID',
+    create_time   DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+    PRIMARY KEY (user_id, restaurant_id),
+    CONSTRAINT fk_fav_user
+        FOREIGN KEY (user_id) REFERENCES sys_user(user_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_fav_restaurant
+        FOREIGN KEY (restaurant_id) REFERENCES restaurant_info(restaurant_id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户收藏表';
+
+-- ─────────────────────────────────────────────
 -- 4. 数据清洗日志表
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS clean_log (

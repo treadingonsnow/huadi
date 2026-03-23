@@ -1,15 +1,17 @@
-import React, { useState } from 'react'
-import { Form, Input, Button, message } from 'antd'
+import React, { useState, useContext } from 'react'
+import { Form, Input, Button } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { login } from '@/api/auth'
 import { useUserStore } from '@/store'
+import { MessageContext } from '@/App'
 
 export default function Login() {
   const navigate = useNavigate()
   const setToken = useUserStore((s) => s.setToken)
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
+  const { messageApi } = useContext(MessageContext)
 
   const onFinish = async (values) => {
     setLoading(true)
@@ -17,16 +19,16 @@ export default function Login() {
       const res = await login({ username: values.username, password: values.password })
       if (res.code === 200) {
         setToken(res.data.access_token)
-        message.success('登录成功')
+        messageApi.success('登录成功', 1)
         navigate('/dashboard')
       } else {
         const errorMessage = res.message || '用户名或密码错误'
-        message.error(errorMessage)
+        messageApi.error(errorMessage)
         form.setFields([{ name: 'password', errors: [errorMessage] }])
       }
     } catch (error) {
       const errorMessage = error?.response?.data?.message || '网络错误，请稍后重试'
-      message.error(errorMessage)
+      messageApi.error(errorMessage)
       form.setFields([{ name: 'password', errors: [errorMessage] }])
     } finally {
       setLoading(false)
