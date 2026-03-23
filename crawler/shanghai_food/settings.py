@@ -1,3 +1,8 @@
+BOT_NAME = "shanghai_food"
+
+SPIDER_MODULES = ["shanghai_food.spiders"]
+NEWSPIDER_MODULE = "shanghai_food.spiders"
+
 # 开启MySQL管道
 ITEM_PIPELINES = {
     "shanghai_food.pipelines.ShanghaiFoodPipeline": 300,
@@ -25,5 +30,5 @@ DEFAULT_REQUEST_HEADERS = {
 }
 
 # 爬虫基础配置
-ROBOTSTXT_OBEY = False  # 美团robots.txt限制爬虫，需关闭
-DOWNLOAD_TIMEOUT = 10   # 请求超时时间
+ROBOTSTXT_OBEY = False
+DOWNLOAD_TIMEOUT = 10
