@@ -38,6 +38,8 @@ export default function Search() {
       price_min: pr.min,
       price_max: pr.max,
       rating_min: filters.rating_min,
+      favorites_only: filters.favFilter === 'fav' ? true : undefined,
+      exclude_favorites: filters.favFilter === 'unfav' ? true : undefined,
       page: p,
       page_size: 12,
     }
@@ -71,6 +73,10 @@ export default function Search() {
     doSearch(1)
     loadFavorites()
   }, [])
+
+  useEffect(() => {
+    doSearch(1)
+  }, [filters.favFilter])
 
   const handleToggleFavorite = async (restaurantId) => {
     const targetId = String(restaurantId)
@@ -106,9 +112,7 @@ export default function Search() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
-  const filteredResults = filters.favFilter
-    ? results.filter((r) => filters.favFilter === 'fav' ? favorites.has(r.id) : !favorites.has(r.id))
-    : results
+  const filteredResults = results
 
   return (
     <div style={S.page}>
@@ -187,7 +191,7 @@ export default function Search() {
         </div>
 
         {/* 结果统计 */}
-        <div style={S.resultInfo}>共找到 <span style={{ color: '#e63946', fontWeight: 600 }}>{total}</span> 家餐厅{filters.favFilter && <span>，当前筛选显示 {filteredResults.length} 家</span>}</div>
+        <div style={S.resultInfo}>共找到 <span style={{ color: '#e63946', fontWeight: 600 }}>{total}</span> 家餐厅</div>
 
         {/* 餐厅卡片列表 */}
         <Spin spinning={loading}>
