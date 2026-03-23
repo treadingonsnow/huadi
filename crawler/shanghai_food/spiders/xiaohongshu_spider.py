@@ -1,176 +1,208 @@
-# 小红书爬虫
-# 数据源：xiaohongshu.com
-# 采集内容：
-# - 探店笔记：标题、正文、发布时间、点赞数、收藏数
-# - 图片/视频：餐厅环境照、菜品照URL
-# - 用户标签：#上海美食 #探店 #网红餐厅 等话题标签
-# - 用户互动：评论内容、用户画像
-# 采集方式：API接口 + 移动端抓包
-# 更新策略：每日采集热门笔记
-# 注意：需要处理签名算法和请求加密
-import os
-import time
-from loguru import logger
-from DrissionPage import ChromiumPage
-from DataRecorder import Recorder
+import json
+import re
+from urllib.parse import quote
+
+import scrapy
 
 
-def create_csv(keyword):
-    """创建CSV记录器"""
-    filename = f'{keyword.strip()}.csv'
-    if os.path.exists(filename):
-        os.remove(filename)
-        logger.info(f'已清除旧文件: {filename}')
-    recorder = Recorder(filename)
-    recorder.set.show_msg(False)
-    return recorder
+class XiaohongshuSpider(scrapy.Spider):
+    name = "xiaohongshu_spider"
+    allowed_domains = ["xiaohongshu.com", "www.xiaohongshu.com"]
+    keyword = "上海餐饮"
+    max_count = 20
 
+    custom_settings = {
+        "LOG_LEVEL": "INFO",
+        "DOWNLOAD_DELAY": 2,
+        "RETRY_TIMES": 2,
+    }
 
-def add_utf8_bom(filename):
-    """给csv文件添加BOM，解决Excel乱码"""
-    with open(filename, 'r+b') as f:
-        content = f.read()
-        f.seek(0)
-        f.write(b'\xef\xbb\xbf' + content)
+    def start_requests(self):
+        search_url = (
+            "https://www.xiaohongshu.com/search_result"
+            f"?keyword={quote(self.keyword)}&source=web_profile_page"
+        )
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/146.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+            "Referer": "https://www.xiaohongshu.com/",
+        }
+        yield scrapy.Request(
+            url=search_url,
+            headers=headers,
+            callback=self.parse_search,
+        )
 
+    def parse_search(self, response):
+        self.logger.info(f"SEARCH URL: {response.url}")
+        self.logger.info(f"SEARCH STATUS: {response.status}")
+        self.logger.info(f"SEARCH TITLE: {response.xpath('//title/text()').get()}")
 
-def find_want(data, target_key):
-    """递归查找目标字段值"""
-    if isinstance(data, dict):
-        for key, val in data.items():
-            if key == target_key:
-                return val
-            ret = find_want(val, target_key)
-            if ret:
-                return ret
-    elif isinstance(data, list):
-        for item in data:
-            ret = find_want(item, target_key)
-            if ret:
-                return ret
-    else:
+        if self._is_blocked(response):
+            self.logger.warning("搜索页疑似被拦截或跳转到登录/风控页")
+            return
+
+        hrefs = response.xpath("//a[contains(@href, '/explore/')]/@href").getall()
+        hrefs += response.xpath("//a[contains(@href, '/discovery/item/')]/@href").getall()
+
+        # 去重并限制数量
+        seen = set()
+        note_urls = []
+        for href in hrefs:
+            full_url = response.urljoin(href)
+            if full_url not in seen:
+                seen.add(full_url)
+                note_urls.append(full_url)
+            if len(note_urls) >= self.max_count:
+                break
+
+        self.logger.info(f"提取到笔记链接数量: {len(note_urls)}")
+
+        for url in note_urls:
+            yield scrapy.Request(
+                url=url,
+                headers={"Referer": response.url},
+                callback=self.parse_note,
+            )
+
+    def parse_note(self, response):
+        self.logger.info(f"NOTE URL: {response.url}")
+        self.logger.info(f"NOTE STATUS: {response.status}")
+
+        if self._is_blocked(response):
+            self.logger.warning(f"详情页被拦截: {response.url}")
+            return
+
+        page_text = response.text
+
+        # 尝试从页面脚本中抓 JSON
+        data = self._extract_embedded_json(page_text)
+
+        if not data:
+            self.logger.warning(f"未能从详情页提取嵌入式 JSON: {response.url}")
+            return
+
+        nickname = self.find_want(data, "nickname")
+        title = self.find_want(data, "title")
+        desc = self.find_want(data, "desc")
+        comment_count = self.find_want(data, "comment_count")
+        liked_count = self.find_want(data, "liked_count")
+        poi_name, poi_address, poi_rating, poi_avg_price = self.extract_poi_info(data)
+
+        item = {
+            "keyword": self.keyword,
+            "source_url": response.url,
+            "博主昵称": nickname,
+            "笔记标题": title,
+            "笔记详情": desc,
+            "评论数": comment_count,
+            "点赞数": liked_count,
+            "店铺名称": poi_name,
+            "店铺地址": poi_address,
+            "店铺评分": poi_rating,
+            "人均价格": poi_avg_price,
+        }
+
+        # 至少有标题或正文时再输出
+        if item["笔记标题"] or item["笔记详情"]:
+            yield item
+        else:
+            self.logger.warning(f"页面解析成功但未拿到核心字段: {response.url}")
+
+    def _is_blocked(self, response):
+        text = response.text.lower()
+        title = response.xpath("//title/text()").get(default="")
+        blocked_keywords = [
+            "登录",
+            "验证码",
+            "安全验证",
+            "请求异常",
+            "访问受限",
+            "please login",
+        ]
+        if response.status in [301, 302, 403, 429]:
+            return True
+        if any(k.lower() in text for k in blocked_keywords):
+            return True
+        if any(k in title for k in ["登录", "验证", "异常"]):
+            return True
+        return False
+
+    def _extract_embedded_json(self, html):
+        """
+        尝试从页面 script 中提取 JSON。
+        小红书页面结构会变，这里做几个宽松匹配。
+        """
+        patterns = [
+            r"window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*;</script>",
+            r"window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*;",
+            r"__INITIAL_STATE__\s*=\s*(\{.*?\})\s*;",
+            r"window\.__INITIAL_SSR_STATE__\s*=\s*(\{.*?\})\s*;",
+        ]
+
+        for pattern in patterns:
+            m = re.search(pattern, html, re.S)
+            if m:
+                raw = m.group(1)
+                try:
+                    return json.loads(raw)
+                except Exception:
+                    continue
+
+        # 兜底：尝试抓取所有 script[type='application/json']
+        json_scripts = re.findall(
+            r'<script[^>]*type="application/json"[^>]*>(.*?)</script>',
+            html,
+            re.S,
+        )
+        for raw in json_scripts:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                data = json.loads(raw)
+                if isinstance(data, (dict, list)):
+                    return data
+            except Exception:
+                continue
+
         return None
 
+    def find_want(self, data, target_key):
+        """
+        递归查找目标字段值。
+        这是沿用你原脚本的核心思路。
+        """
+        if isinstance(data, dict):
+            for key, val in data.items():
+                if key == target_key:
+                    return val
+                ret = self.find_want(val, target_key)
+                if ret is not None:
+                    return ret
+        elif isinstance(data, list):
+            for item in data:
+                ret = self.find_want(item, target_key)
+                if ret is not None:
+                    return ret
+        return None
 
-def extract_poi_info(data):
-    """从数据中提取POI（地点）相关信息"""
-    poi = find_want(data, 'poi')
-    if not poi:
-        return None, None, None, None
-    name = poi.get('title') if isinstance(poi, dict) else None
-    address = poi.get('address') if isinstance(poi, dict) else None
-    rating = poi.get('rating') if isinstance(poi, dict) else None
-    avg_price = poi.get('avg_price') if isinstance(poi, dict) else None
-    return name, address, rating, avg_price
+    def extract_poi_info(self, data):
+        """
+        从数据中提取 POI（地点）相关信息。
+        这部分逻辑也沿用你原脚本。
+        """
+        poi = self.find_want(data, "poi")
+        if not poi or not isinstance(poi, dict):
+            return None, None, None, None
 
-
-def handler(page, keyword):
-    """处理单个关键词的爬取"""
-    recorder = create_csv(keyword)
-    page.listen.start('web/v1/feed')
-    page.get(f'https://www.xiaohongshu.com/search_result?keyword={keyword}&source=web_profile_page')
-    page.wait.load_start()
-
-    s = set()
-    logger.info(f'开始爬取【{keyword}】相关数据...')
-
-    data_count = 0
-    max_count = 20
-    error_count = 0
-    scroll_interval = 5
-
-    while data_count < max_count:
-        try:
-            cards = page.eles('xpath://*[@id="global"]/div[2]/div[2]/div/div/div[3]/div[1]/section')
-            for card in cards:
-                if data_count >= max_count:
-                    break
-
-                index = card.attr('data-index')
-                if index in s:
-                    continue
-                s.add(index)
-
-                logger.info(f'正在处理卡片索引 {index}，当前成功采集 {data_count} 条...')
-
-                try:
-                    img_elem = card.ele('xpath:./div/a[2]/img', timeout=3)
-                    img_elem.click(by_js=True)
-                except Exception:
-                    card.click(by_js=True)
-
-                res = page.listen.wait(count=1, timeout=3, fit_count=True)
-                if not res:
-                    logger.warning(f'卡片 {index} 未捕获到数据接口，跳过')
-                    continue
-
-                data = res.response.body
-                if not data:
-                    logger.warning(f'卡片 {index} 接口返回数据为空，跳过')
-                    continue
-
-                nickname = find_want(data, 'nickname')
-                title = find_want(data, 'title')
-                desc = find_want(data, 'desc')
-                comment_count = find_want(data, 'comment_count')
-                liked_count = find_want(data, 'liked_count')
-                poi_name, poi_address, poi_rating, poi_avg_price = extract_poi_info(data)
-
-                row_data = {
-                    '博主昵称': nickname,
-                    '笔记标题': title,
-                    '笔记详情': desc,
-                    '评论数': comment_count,
-                    '点赞数': liked_count,
-                    '店铺名称': poi_name,
-                    '店铺地址': poi_address,
-                    '店铺评分': poi_rating,
-                    '人均价格': poi_avg_price,
-                }
-                recorder.add_data(row_data)
-                recorder.record()
-                data_count += 1
-                logger.info(f'成功采集第 {data_count} 条数据（卡片索引 {index}）')
-
-                try:
-                    close_btn = page.ele('xpath:/html/body/div[5]/div[2]/div', timeout=2)
-                    if close_btn:
-                        close_btn.click()
-                except Exception:
-                    pass
-                page.wait.load_start()
-
-                if data_count % scroll_interval == 0:
-                    logger.info('页面滚动以加载更多内容...')
-                    page.scroll.down(1000)
-                    page.wait.load_start()
-
-        except Exception as e:
-            logger.warning(f'外层循环异常: {e}')
-            error_count += 1
-            if error_count > max_count:
-                logger.error(f'错误次数超过 {max_count}，停止采集！')
-                break
-            continue
-
-    # 爬完自动添加BOM，解决乱码
-    filename = f'{keyword.strip()}.csv'
-    add_utf8_bom(filename)
-    logger.info(f'已自动修复文件编码，Excel打开不再乱码：{filename}')
-
-    if data_count >= max_count:
-        logger.info(f'已成功采集 {data_count} 条数据，【{keyword}】爬取完成！')
-    else:
-        logger.info(f'【{keyword}】采集未完成，共采集到 {data_count} 条数据')
-
-
-def main():
-    page = ChromiumPage()
-    page.get('https://www.xiaohongshu.com/explore')
-    input('请扫码登录，登录成功后按回车继续（如已登录请直接回车）')
-    keyword = '上海餐饮'
-    handler(page, keyword)
-
-
-if __name__ == '__main__':
-    main()
+        name = poi.get("title")
+        address = poi.get("address")
+        rating = poi.get("rating")
+        avg_price = poi.get("avg_price")
+        return name, address, rating, avg_price
