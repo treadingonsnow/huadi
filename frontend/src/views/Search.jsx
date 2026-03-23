@@ -19,7 +19,7 @@ export default function Search() {
   const navigate = useNavigate()
   const logout = useUserStore((s) => s.logout)
   const [keyword, setKeyword] = useState('')
-  const [filters, setFilters] = useState({ cuisine: undefined, district: undefined, priceRange: undefined, rating_min: undefined })
+  const [filters, setFilters] = useState({ cuisine: undefined, district: undefined, priceRange: undefined, rating_min: undefined, favFilter: undefined })
   const [results, setResults] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -30,7 +30,7 @@ export default function Search() {
 
   const doSearch = async (p = 1) => {
     setLoading(true)
-    const pr = filters.priceRange ? PRICE_RANGES[filters.priceRange] : {}
+    const pr = filters.priceRange !== undefined ? PRICE_RANGES[filters.priceRange] : {}
     const params = {
       keyword: keyword || undefined,
       cuisine: filters.cuisine,
@@ -106,6 +106,10 @@ export default function Search() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
+  const filteredResults = filters.favFilter
+    ? results.filter((r) => filters.favFilter === 'fav' ? favorites.has(r.id) : !favorites.has(r.id))
+    : results
+
   return (
     <div style={S.page}>
       {contextHolder}
@@ -169,21 +173,29 @@ export default function Search() {
             onChange={(v) => setFilters((f) => ({ ...f, rating_min: v }))}
             options={[4.5, 4.0, 3.5, 3.0].map((r) => ({ label: `${r}分以上`, value: r }))}
           />
-          <Button onClick={() => { setFilters({ cuisine: undefined, district: undefined, priceRange: undefined, rating_min: undefined }); setKeyword('') }}>
+          <Select
+            placeholder="收藏状态"
+            allowClear
+            style={{ width: 120 }}
+            value={filters.favFilter}
+            onChange={(v) => setFilters((f) => ({ ...f, favFilter: v }))}
+            options={[{ label: '已收藏', value: 'fav' }, { label: '未收藏', value: 'unfav' }]}
+          />
+          <Button onClick={() => { setFilters({ cuisine: undefined, district: undefined, priceRange: undefined, rating_min: undefined, favFilter: undefined }); setKeyword('') }}>
             重置
           </Button>
         </div>
 
         {/* 结果统计 */}
-        <div style={S.resultInfo}>共找到 <span style={{ color: '#e63946', fontWeight: 600 }}>{total}</span> 家餐厅</div>
+        <div style={S.resultInfo}>共找到 <span style={{ color: '#e63946', fontWeight: 600 }}>{total}</span> 家餐厅{filters.favFilter && <span>，当前筛选显示 {filteredResults.length} 家</span>}</div>
 
         {/* 餐厅卡片列表 */}
         <Spin spinning={loading}>
-          {results.length === 0 && !loading ? (
+          {filteredResults.length === 0 && !loading ? (
             <Empty description="暂无数据" style={{ marginTop: 60 }} />
           ) : (
             <div style={S.cardGrid}>
-              {results.map((r) => (
+              {filteredResults.map((r) => (
                 <RestaurantCard
                   key={r.id}
                   data={r}
