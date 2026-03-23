@@ -3,6 +3,8 @@
 # - GET  /search          多维度搜索
 # - GET  /{restaurant_id} 餐厅详情
 # - GET  /{restaurant_id}/reviews  餐厅评论列表
+# - POST /favorites        收藏/取消收藏餐厅（需登录）
+# - GET  /favorites        获取用户收藏列表（需登录）
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -14,6 +16,9 @@ from decimal import Decimal
 from ...database import get_db
 from ...models.restaurant import Restaurant
 from ...models.review import Review
+from ...models.favorite import UserFavorite
+from ...models.user import User
+from ...core.deps import get_current_user
 from ...response import success, error
 
 router = APIRouter()
@@ -96,7 +101,75 @@ def search_restaurants(
     })
 
 
-# === 餐厅详情 ===
+# === 收藏/取消收藏餐厅（具体路径，放前面！）===
+
+@router.post("/favorites")
+def toggle_favorite(
+        restaurant_id: str,
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+):
+    """收藏/取消收藏餐厅"""
+    restaurant = db.query(Restaurant).filter(Restaurant.restaurant_id == restaurant_id).first()
+    if not restaurant:
+        return error(message="餐厅不存在", code=404)
+
+    existing_favorite = db.query(UserFavorite).filter(
+        UserFavorite.user_id == current_user.user_id,
+        UserFavorite.restaurant_id == restaurant_id
+    ).first()
+
+    if existing_favorite:
+        db.delete(existing_favorite)
+        db.commit()
+        return success(data={"action": "remove", "message": "已取消收藏"})
+    else:
+        new_favorite = UserFavorite(user_id=current_user.user_id, restaurant_id=restaurant_id)
+        db.add(new_favorite)
+        db.commit()
+        return success(data={"action": "add", "message": "已收藏"})
+
+
+
+# === 获取用户收藏列表 ===
+
+@router.get("/favorites")
+def get_user_favorites(
+        page: int = Query(default=1, ge=1, description="页码"),
+        page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+):
+    """获取当前用户收藏的餐厅列表"""
+    query = db.query(UserFavorite).filter(UserFavorite.user_id == current_user.user_id)
+    total = query.count()
+
+    offset = (page - 1) * page_size
+    favorites = query.offset(offset).limit(page_size).all()
+
+    restaurant_ids = [fav.restaurant_id for fav in favorites]
+    restaurants = db.query(Restaurant).filter(
+        Restaurant.restaurant_id.in_(restaurant_ids)
+    ).all() if restaurant_ids else []
+
+    items = []
+    for fav in favorites:
+        restaurant = next((r for r in restaurants if r.restaurant_id == fav.restaurant_id), None)
+        if restaurant:
+            items.append({
+                "restaurant": _r_to_dict(restaurant),
+                "favorite_time": fav.create_time.isoformat() if fav.create_time else None
+            })
+
+    return success(data={
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": items
+    })
+
+
+# === 餐厅详情（动态路径，放最后！）===
 
 @router.get("/{restaurant_id}")
 def get_restaurant_detail(
@@ -112,7 +185,7 @@ def get_restaurant_detail(
     return success(data=_r_to_dict(restaurant))
 
 
-# === 餐厅评论列表 ===
+# === 餐厅评论列表（动态路径，放最后！）===
 
 @router.get("/{restaurant_id}/reviews")
 def get_restaurant_reviews(
@@ -154,4 +227,3 @@ def get_restaurant_reviews(
         "page_size": page_size,
         "items": [_review_to_dict(rv) for rv in items]
     })
-
