@@ -1,13 +1,3 @@
-# 小红书爬虫
-# 数据源：xiaohongshu.com
-# 采集内容：
-# - 探店笔记：标题、正文、发布时间、点赞数、收藏数
-# - 图片/视频：餐厅环境照、菜品照URL
-# - 用户标签：#上海美食 #探店 #网红餐厅 等话题标签
-# - 用户互动：评论内容、用户画像
-# 采集方式：API接口 + 移动端抓包
-# 更新策略：每日采集热门笔记
-# 注意：需要处理签名算法和请求加密
 import os
 import time
 from loguru import logger
@@ -16,22 +6,38 @@ from DataRecorder import Recorder
 
 
 def create_csv(keyword):
-    """创建CSV记录器"""
+    """创建/复用CSV记录器（追加模式，保留历史数据）"""
     filename = f'{keyword.strip()}.csv'
-    if os.path.exists(filename):
-        os.remove(filename)
-        logger.info(f'已清除旧文件: {filename}')
-    recorder = Recorder(filename)
-    recorder.set.show_msg(False)
+    # 核心修改1：删除清空旧文件的逻辑，不再删除历史文件
+    # 移除原有的 os.remove 相关代码
+
+    # 判断文件是否存在，不存在则新建，存在则直接复用
+    if not os.path.exists(filename):
+        logger.info(f'创建新CSV文件: {filename}')
+        recorder = Recorder(filename)
+        recorder.set.show_msg(False)
+    else:
+        logger.info(f'复用已有CSV文件: {filename}，新数据将追加到文件末尾')
+        recorder = Recorder(filename)
+        recorder.set.show_msg(False)
     return recorder
 
 
 def add_utf8_bom(filename):
-    """给csv文件添加BOM，解决Excel乱码"""
+    """给csv文件添加BOM，解决Excel乱码（兼容追加模式）"""
+    if not os.path.exists(filename):
+        logger.warning(f'文件 {filename} 不存在，跳过BOM添加')
+        return
+
     with open(filename, 'r+b') as f:
         content = f.read()
+        # 核心修改2：判断是否已有BOM，避免重复添加导致乱码
+        if content.startswith(b'\xef\xbb\xbf'):
+            logger.info(f'文件 {filename} 已包含BOM，无需重复添加')
+            return
         f.seek(0)
         f.write(b'\xef\xbb\xbf' + content)
+        f.truncate()  # 截断多余内容
 
 
 def find_want(data, target_key):
@@ -128,7 +134,7 @@ def handler(page, keyword):
                     '人均价格': poi_avg_price,
                 }
                 recorder.add_data(row_data)
-                recorder.record()
+                recorder.record()  # DataRecorder 的 record() 方法默认是追加写入
                 data_count += 1
                 logger.info(f'成功采集第 {data_count} 条数据（卡片索引 {index}）')
 
@@ -153,7 +159,7 @@ def handler(page, keyword):
                 break
             continue
 
-    # 爬完自动添加BOM，解决乱码
+    # 爬完自动添加BOM，解决乱码（已兼容追加模式）
     filename = f'{keyword.strip()}.csv'
     add_utf8_bom(filename)
     logger.info(f'已自动修复文件编码，Excel打开不再乱码：{filename}')
