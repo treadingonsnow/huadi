@@ -16,7 +16,7 @@ export default function Register() {
     try {
       const res = await register({ username: values.username, password: values.password })
       if (res.code === 200) {
-        messageApi.success('注册成功，请登录', 1)
+        messageApi.success('注册成功，请登录', 1.5)
         navigate('/login')
       } else {
         const errorMessage = res.message || '注册失败'
