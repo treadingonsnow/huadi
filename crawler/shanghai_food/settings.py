@@ -4,9 +4,7 @@ SPIDER_MODULES = ["shanghai_food.spiders"]
 NEWSPIDER_MODULE = "shanghai_food.spiders"
 
 # 开启MySQL管道
-ITEM_PIPELINES = {
-    "shanghai_food.pipelines.ShanghaiFoodPipeline": 300,
-}
+ITEM_PIPELINES = {}
 
 # MySQL配置（替换为你的实际信息）
 MYSQL_CONFIG = {
