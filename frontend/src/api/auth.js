@@ -1,4 +1,4 @@
-import { post } from '@/utils/request'
+import request, { post } from '@/utils/request'
 
 const USE_MOCK = false
 
@@ -14,3 +14,5 @@ export const login = (data) => {
   }
   return post('/auth/login', data)
 }
+
+export const register = (data) => post('/auth/register', data)

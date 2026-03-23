@@ -28,22 +28,31 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+
+
 # === 用户注册 ===
 
 @router.post("/register")
 def register(
-        username: str,
-        password: str,
+        req: RegisterRequest,
         db: Session = Depends(get_db)
 ):
-    """用户注册（query params）"""
-    existing_user = db.query(User).filter(User.username == username).first()
+    """用户注册（JSON body: {"username": "...", "password": "..."}）"""
+    if len(req.username) < 3 or len(req.username) > 20:
+        return error(message="用户名长度需在3-20个字符之间", code=400)
+    if len(req.password) < 6:
+        return error(message="密码长度不能少于6个字符", code=400)
+
+    existing_user = db.query(User).filter(User.username == req.username).first()
     if existing_user:
         return error(message="用户名已存在", code=400)
 
     new_user = User(
-        username=username,
-        password_hash=hash_password(password),
+        username=req.username,
+        password_hash=hash_password(req.password),
         role="user",
         is_active=True
     )

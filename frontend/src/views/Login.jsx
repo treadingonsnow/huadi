@@ -9,6 +9,7 @@ export default function Login() {
   const navigate = useNavigate()
   const setToken = useUserStore((s) => s.setToken)
   const [loading, setLoading] = useState(false)
+  const [form] = Form.useForm()
 
   const onFinish = async (values) => {
     setLoading(true)
@@ -19,10 +20,14 @@ export default function Login() {
         message.success('登录成功')
         navigate('/dashboard')
       } else {
-        message.error(res.message || '登录失败')
+        const errorMessage = res.message || '用户名或密码错误'
+        message.error(errorMessage)
+        form.setFields([{ name: 'password', errors: [errorMessage] }])
       }
-    } catch {
-      message.error('网络错误，请稍后重试')
+    } catch (error) {
+      const errorMessage = error?.response?.data?.message || '网络错误，请稍后重试'
+      message.error(errorMessage)
+      form.setFields([{ name: 'password', errors: [errorMessage] }])
     } finally {
       setLoading(false)
     }
@@ -34,7 +39,7 @@ export default function Login() {
         <div style={styles.logo}>🍜</div>
         <h1 style={styles.title}>上海美食大数据平台</h1>
         <p style={styles.subtitle}>Shanghai Food Analytics</p>
-        <Form onFinish={onFinish} size="large" style={{ marginTop: 32 }}>
+        <Form form={form} onFinish={onFinish} size="large" style={{ marginTop: 32 }}>
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input prefix={<UserOutlined />} placeholder="用户名" style={styles.input} />
           </Form.Item>
@@ -53,6 +58,9 @@ export default function Login() {
             </Button>
           </Form.Item>
         </Form>
+        <Button type="link" onClick={() => navigate('/register')} style={styles.link}>
+          还没有账号？去注册
+        </Button>
         <p style={styles.hint}>测试账号：admin / admin123</p>
       </div>
     </div>
@@ -82,5 +90,6 @@ const styles = {
   subtitle: { color: '#ffd700', fontSize: 13, marginTop: 4, letterSpacing: 2 },
   input: { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' },
   btn: { background: '#e63946', borderColor: '#e63946', height: 44, fontSize: 16, fontWeight: 600 },
+  link: { color: '#ffd700', padding: 0 },
   hint: { color: '#8b949e', fontSize: 12, marginTop: 8 },
 }
