@@ -3,3 +3,5 @@
 from .user import User
 from .favorite import UserFavorite
 from .restaurant import Restaurant
+from .review import Review
+from .clean_log import CleanLog

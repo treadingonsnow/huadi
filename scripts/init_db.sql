@@ -82,7 +82,24 @@ CREATE TABLE IF NOT EXISTS sys_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户表';
 
 -- ─────────────────────────────────────────────
--- 4. 爬虫任务表
+-- 4. 数据清洗日志表
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS clean_log (
+    id           INT           NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+    task_name    VARCHAR(200)  NOT NULL COMMENT '任务名称',
+    stage        VARCHAR(50)   DEFAULT NULL COMMENT '清洗阶段（load/dedup/normalize/validate/insert/hdfs/hive）',
+    level        VARCHAR(20)   NOT NULL DEFAULT 'INFO' COMMENT '日志级别（INFO/WARNING/ERROR）',
+    message      TEXT          NOT NULL COMMENT '日志内容',
+    record_count INT           DEFAULT NULL COMMENT '影响记录数',
+    create_time  DATETIME      DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    INDEX idx_task_name  (task_name),
+    INDEX idx_level      (level),
+    INDEX idx_create_time(create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='数据清洗日志表';
+
+-- ─────────────────────────────────────────────
+-- 5. 爬虫任务表
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS crawl_task (
     task_id       INT           NOT NULL AUTO_INCREMENT COMMENT '任务ID',
@@ -107,19 +124,13 @@ CREATE TABLE IF NOT EXISTS crawl_task (
 --    analyst  → 明文密码: analyst123
 -- ─────────────────────────────────────────────
 INSERT IGNORE INTO sys_user (username, password_hash, role, is_active) VALUES
-('admin',   '$2b$12$kLtCwhHtF9sUlGgpwBrg5uUHMvHluimkqHn4/0hLhDqk35HfQW7OK', 'admin', 1),
-('analyst', '$2b$12$xnhDQjhcjq..R5.N2l8dLe4aDJ3VBkSBpCvVt/yzoXC3AcLssmnwS', 'user',  1);
+('admin',   '$2b$12$r9iD.quLuqy87On1w4aZ9.paglgIOtEJwtzEbztH5oOXdRwXgQcYa', 'admin', 1),
+('analyst', '$2b$12$aBvV/iKePlWU2CWX091XCu6/3FP1JgzoTNSMaDJTdPCecrp48AG96', 'user',  1);
 
 -- ─────────────────────────────────────────────
--- 注意：上面的 BCrypt hash 是占位符，需要用下面的
--- Python 命令重新生成真实 hash 后替换：
+-- 注意：如果用户已存在（INSERT IGNORE 跳过），
+-- 需要用 UPDATE 强制刷新密码：
 --
---   python3 -c "
---   from passlib.context import CryptContext
---   ctx = CryptContext(schemes=['bcrypt'])
---   print('admin123 :', ctx.hash('admin123'))
---   print('analyst123:', ctx.hash('analyst123'))
---   "
---
--- 然后把输出的 hash 替换上面 INSERT 语句中的占位符。
+--   UPDATE sys_user SET password_hash='$2b$12$r9iD.quLuqy87On1w4aZ9.paglgIOtEJwtzEbztH5oOXdRwXgQcYa' WHERE username='admin';
+--   UPDATE sys_user SET password_hash='$2b$12$aBvV/iKePlWU2CWX091XCu6/3FP1JgzoTNSMaDJTdPCecrp48AG96' WHERE username='analyst';
 -- ─────────────────────────────────────────────

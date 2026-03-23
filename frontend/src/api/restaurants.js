@@ -1,6 +1,6 @@
 import { get } from '@/utils/request'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 const mockRestaurants = [
   { id: 1, name: '外婆家（南京西路店）', cuisine_type: '本帮菜', district: '静安区', business_area: '南京西路', avg_price: 85, rating: 4.6, review_count: 3200, address: '南京西路1038号梅龙镇广场B1', phone: '021-****8888' },

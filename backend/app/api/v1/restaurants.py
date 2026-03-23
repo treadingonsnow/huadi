@@ -3,39 +3,54 @@
 # - GET  /search          多维度搜索
 # - GET  /{restaurant_id} 餐厅详情
 # - GET  /{restaurant_id}/reviews  餐厅评论列表
-# - POST /favorites        收藏/取消收藏餐厅（需登录）
-# - GET  /favorites        获取用户收藏列表（需登录）
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, desc
-from typing import Optional, List
+from typing import Optional
 from decimal import Decimal
 
 # 相对导入
 from ...database import get_db
 from ...models.restaurant import Restaurant
 from ...models.review import Review
-from ...models.favorite import UserFavorite
-from ...models.user import User
-from ...core.deps import get_current_user
 from ...response import success, error
 
 router = APIRouter()
+
+
+def _r_to_dict(r: Restaurant) -> dict:
+    """将 Restaurant ORM 对象转换为前端期望的字段格式"""
+    return {
+        "id": r.restaurant_id,
+        "name": r.restaurant_name,
+        "address": r.address,
+        "phone": r.phone,
+        "business_hours": r.business_hours,
+        "avg_price": float(r.avg_price) if r.avg_price is not None else 0,
+        "rating": float(r.rating_overall) if r.rating_overall is not None else 0,
+        "review_count": r.review_count or 0,
+        "cuisine_type": r.cuisine_type,
+        "district": r.district,
+        "business_area": r.business_area,
+        "latitude": float(r.latitude) if r.latitude is not None else None,
+        "longitude": float(r.longitude) if r.longitude is not None else None,
+        "data_source": r.data_source,
+    }
 
 
 # === 餐厅搜索 ===
 
 @router.get("/search")
 def search_restaurants(
-        keyword: Optional[str] = Query(None, description="关键词（餐厅名称）"),
+        keyword: Optional[str] = Query(None, description="关键词（餐厅名/菜系/区域模糊匹配）"),
         district: Optional[str] = Query(None, description="行政区"),
-        business_area: Optional[str] = Query(None, description="商圈"),
-        cuisine_type: Optional[str] = Query(None, description="菜系类型"),
-        min_price: Optional[Decimal] = Query(None, description="最低人均消费"),
-        max_price: Optional[Decimal] = Query(None, description="最高人均消费"),
-        min_rating: Optional[Decimal] = Query(None, description="最低评分"),
-        sort_by: str = Query("default", description="排序方式：default/distance/rating/price/hot"),
+        cuisine: Optional[str] = Query(None, alias="cuisine", description="菜系类型"),
+        cuisine_type: Optional[str] = Query(None, description="菜系类型（兼容字段）"),
+        price_min: Optional[Decimal] = Query(None, description="最低人均消费"),
+        price_max: Optional[Decimal] = Query(None, description="最高人均消费"),
+        rating_min: Optional[Decimal] = Query(None, description="最低评分"),
+        sort_by: str = Query("default", description="排序：default/rating/price"),
         page: int = Query(1, ge=1, description="页码"),
         page_size: int = Query(20, ge=1, le=100, description="每页数量"),
         db: Session = Depends(get_db)
@@ -43,31 +58,31 @@ def search_restaurants(
     """餐厅搜索接口"""
     conditions = []
 
+    # cuisine 和 cuisine_type 两个参数都支持（前端用 cuisine）
+    cuisine_filter = cuisine or cuisine_type
     if keyword:
         conditions.append(Restaurant.restaurant_name.like(f"%{keyword}%"))
     if district:
         conditions.append(Restaurant.district.like(f"%{district}%"))
-    if business_area:
-        conditions.append(Restaurant.business_area.like(f"%{business_area}%"))
-    if cuisine_type:
-        conditions.append(Restaurant.cuisine_type == cuisine_type)
-    if min_price is not None:
-        conditions.append(Restaurant.avg_price >= min_price)
-    if max_price is not None:
-        conditions.append(Restaurant.avg_price <= max_price)
+    if cuisine_filter:
+        conditions.append(Restaurant.cuisine_type == cuisine_filter)
+    if price_min is not None:
+        conditions.append(Restaurant.avg_price >= price_min)
+    if price_max is not None:
+        conditions.append(Restaurant.avg_price <= price_max)
+    if rating_min is not None:
+        conditions.append(Restaurant.rating_overall >= rating_min)
 
     query = db.query(Restaurant)
     if conditions:
         query = query.filter(and_(*conditions))
 
     if sort_by == "rating":
-        query = query.outerjoin(Review).group_by(Restaurant.restaurant_id)
-        query = query.order_by(desc(func.avg(Review.rating_overall)))
+        query = query.order_by(desc(Restaurant.rating_overall))
     elif sort_by == "price":
         query = query.order_by(Restaurant.avg_price)
-    elif sort_by == "hot":
-        query = query.outerjoin(Review).group_by(Restaurant.restaurant_id)
-        query = query.order_by(desc(func.count(Review.review_id)))
+    else:
+        query = query.order_by(desc(Restaurant.rating_overall))
 
     total = query.count()
     offset = (page - 1) * page_size
@@ -77,78 +92,11 @@ def search_restaurants(
         "total": total,
         "page": page,
         "page_size": page_size,
-        "items": items
+        "items": [_r_to_dict(r) for r in items]
     })
 
 
-# === 收藏/取消收藏餐厅（移到前面！）===
-
-@router.post("/favorites")
-def toggle_favorite(
-        restaurant_id: str,
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
-):
-    """收藏/取消收藏餐厅"""
-    restaurant = db.query(Restaurant).filter(Restaurant.restaurant_id == restaurant_id).first()
-    if not restaurant:
-        return error(message="餐厅不存在", code=404)
-
-    existing_favorite = db.query(UserFavorite).filter(
-        UserFavorite.user_id == current_user.user_id,
-        UserFavorite.restaurant_id == restaurant_id
-    ).first()
-
-    if existing_favorite:
-        db.delete(existing_favorite)
-        db.commit()
-        return success(data={"action": "remove", "message": "已取消收藏"})
-    else:
-        new_favorite = UserFavorite(user_id=current_user.user_id, restaurant_id=restaurant_id)
-        db.add(new_favorite)
-        db.commit()
-        return success(data={"action": "add", "message": "已收藏"})
-
-
-# === 获取用户收藏列表（移到前面！）===
-
-@router.get("/favorites")
-def get_user_favorites(
-        page: int = Query(1, ge=1, description="页码"),
-        page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
-):
-    """获取当前用户收藏的餐厅列表"""
-    query = db.query(UserFavorite).filter(UserFavorite.user_id == current_user.user_id)
-    total = query.count()
-
-    offset = (page - 1) * page_size
-    favorites = query.offset(offset).limit(page_size).all()
-
-    restaurant_ids = [fav.restaurant_id for fav in favorites]
-    restaurants = db.query(Restaurant).filter(
-        Restaurant.restaurant_id.in_(restaurant_ids)
-    ).all() if restaurant_ids else []
-
-    items = []
-    for fav in favorites:
-        restaurant = next((r for r in restaurants if r.restaurant_id == fav.restaurant_id), None)
-        if restaurant:
-            items.append({
-                "restaurant": restaurant,
-                "favorite_time": fav.create_time.isoformat() if fav.create_time else None
-            })
-
-    return success(data={
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "items": items
-    })
-
-
-# === 餐厅详情（动态路径，放最后！）===
+# === 餐厅详情 ===
 
 @router.get("/{restaurant_id}")
 def get_restaurant_detail(
@@ -161,30 +109,17 @@ def get_restaurant_detail(
     if not restaurant:
         return error(message="餐厅不存在", code=404)
 
-    avg_rating = db.query(func.avg(Review.rating_overall)).filter(
-        Review.restaurant_id == restaurant_id
-    ).scalar()
-
-    review_count = db.query(func.count(Review.review_id)).filter(
-        Review.restaurant_id == restaurant_id
-    ).scalar()
-
-    return success(data={
-        "restaurant": restaurant,
-        "avg_rating": float(avg_rating) if avg_rating else 0,
-        "review_count": review_count or 0
-    })
+    return success(data=_r_to_dict(restaurant))
 
 
-# === 餐厅评论列表（动态路径，放最后！）===
+# === 餐厅评论列表 ===
 
 @router.get("/{restaurant_id}/reviews")
 def get_restaurant_reviews(
         restaurant_id: str,
         page: int = Query(1, ge=1, description="页码"),
         page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-        min_rating: Optional[Decimal] = Query(None, description="最低评分"),
-        sort_by: str = Query("time", description="排序方式：time/rating/like"),
+        sort_by: str = Query("time", description="排序方式：time/rating"),
         db: Session = Depends(get_db)
 ):
     """餐厅评论列表接口"""
@@ -192,16 +127,10 @@ def get_restaurant_reviews(
     if not restaurant:
         return error(message="餐厅不存在", code=404)
 
-    conditions = [Review.restaurant_id == restaurant_id]
-    if min_rating is not None:
-        conditions.append(Review.rating_overall >= min_rating)
-
-    query = db.query(Review).filter(and_(*conditions))
+    query = db.query(Review).filter(Review.restaurant_id == restaurant_id)
 
     if sort_by == "rating":
         query = query.order_by(desc(Review.rating_overall))
-    elif sort_by == "like":
-        query = query.order_by(desc(Review.like_count))
     else:
         query = query.order_by(desc(Review.review_time))
 
@@ -209,9 +138,20 @@ def get_restaurant_reviews(
     offset = (page - 1) * page_size
     items = query.offset(offset).limit(page_size).all()
 
+    def _review_to_dict(rv: Review) -> dict:
+        return {
+            "review_id": rv.review_id,
+            "restaurant_id": rv.restaurant_id,
+            "rating_overall": float(rv.rating_overall) if rv.rating_overall else None,
+            "review_content": rv.review_content,
+            "review_time": rv.review_time.isoformat() if rv.review_time else None,
+            "sentiment_score": float(rv.sentiment_score) if rv.sentiment_score else None,
+        }
+
     return success(data={
         "total": total,
         "page": page,
         "page_size": page_size,
-        "items": items
+        "items": [_review_to_dict(rv) for rv in items]
     })
+

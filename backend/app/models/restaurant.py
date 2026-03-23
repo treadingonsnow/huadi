@@ -42,6 +42,10 @@ class Restaurant(Base):
     phone = Column(String(20), nullable=True, comment="联系电话（已脱敏）")
     business_hours = Column(String(100), nullable=True, comment="营业时间")
 
+    # === 评分与评论 ===
+    rating_overall = Column(DECIMAL(3, 1), nullable=True, comment="综合评分（1-5）")
+    review_count = Column(Integer, nullable=True, default=0, comment="评论总数")
+
     # === 消费信息 ===
     avg_price = Column(DECIMAL(10, 2), nullable=True, comment="人均消费（元）")
     cuisine_type = Column(String(50), nullable=True, index=True, comment="菜系类型")

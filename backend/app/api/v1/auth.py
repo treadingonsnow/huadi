@@ -7,6 +7,7 @@
 # - PUT  /me              更新用户信息
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
@@ -20,6 +21,13 @@ from ...models.user import User
 router = APIRouter()
 
 
+# === 请求体 Schema ===
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 # === 用户注册 ===
 
 @router.post("/register")
@@ -28,22 +36,11 @@ def register(
         password: str,
         db: Session = Depends(get_db)
 ):
-    """
-    用户注册
-
-    参数:
-        username: 用户名
-        password: 密码
-
-    返回:
-        {"code": 200, "message": "success", "data": {"user_id": 1, "username": "xxx"}}
-    """
-    # 检查用户名是否已存在
+    """用户注册（query params）"""
     existing_user = db.query(User).filter(User.username == username).first()
     if existing_user:
-        return error(msg="用户名已存在", code=400)
+        return error(message="用户名已存在", code=400)
 
-    # 创建新用户
     new_user = User(
         username=username,
         password_hash=hash_password(password),
@@ -66,30 +63,22 @@ def register(
 
 @router.post("/login")
 def login(
-        username: str,
-        password: str,
+        req: LoginRequest,
         db: Session = Depends(get_db)
 ):
     """
-    用户登录
-
-    参数:
-        username: 用户名
-        password: 密码
+    用户登录（JSON body: {"username": "...", "password": "..."}）
 
     返回:
         {"code": 200, "message": "success", "data": {"access_token": "xxx", "token_type": "bearer"}}
     """
-    # 查询用户
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.username == req.username).first()
 
-    # 验证用户是否存在
     if not user or not user.is_active:
-        return error(msg="用户名或密码错误", code=401)
+        return {"code": 401, "message": "用户名或密码错误", "data": None}
 
-    # 验证密码
-    if not verify_password(password, user.password_hash):
-        return error(msg="用户名或密码错误", code=401)
+    if not verify_password(req.password, user.password_hash):
+        return {"code": 401, "message": "用户名或密码错误", "data": None}
 
     # 生成 Token
     access_token = create_access_token(
