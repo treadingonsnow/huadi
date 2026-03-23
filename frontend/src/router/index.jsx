@@ -1,6 +1,7 @@
 import React from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Login from '@/views/Login'
+import Register from '@/views/Register'
 import Dashboard from '@/views/admin/Dashboard'
 import Search from '@/views/Search'
 import DataImport from '@/views/DataImport'
@@ -15,6 +16,7 @@ function ProtectedRoute({ children }) {
 
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
+  { path: '/register', element: <Register /> },
   {
     path: '/dashboard',
     element: <ProtectedRoute><Dashboard /></ProtectedRoute>,
