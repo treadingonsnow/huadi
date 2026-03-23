@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Input, Select, Button, Card, Modal, Tag, Pagination, Rate, Empty, Spin } from 'antd'
-import { SearchOutlined, EnvironmentOutlined, PhoneOutlined, ShopOutlined } from '@ant-design/icons'
+import { Input, Select, Button, Card, Modal, Tag, Pagination, Rate, Empty, Spin, message } from 'antd'
+import { SearchOutlined, EnvironmentOutlined, PhoneOutlined, ShopOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { searchRestaurants } from '@/api/restaurants'
+import { searchRestaurants, getFavorites, toggleFavorite } from '@/api/restaurants'
 import { useUserStore } from '@/store'
 
 const CUISINES = ['川菜', '本帮菜', '日料', '火锅', '粤菜', '西餐', '烧烤', '面食', '海鲜', '台湾菜', '北京菜', '甜品饮品']
@@ -25,6 +25,8 @@ export default function Search() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState(null)
+  const [favorites, setFavorites] = useState(new Set())
+  const [messageApi, contextHolder] = message.useMessage()
 
   const doSearch = async (p = 1) => {
     setLoading(true)
@@ -51,12 +53,62 @@ export default function Search() {
     }
   }
 
-  useEffect(() => { doSearch(1) }, [])
+  const loadFavorites = async () => {
+    try {
+      const res = await getFavorites({ page: 1, page_size: 100 })
+      if (res.code === 200) {
+        const ids = (res.data.items || [])
+          .map((item) => item.restaurant?.id)
+          .filter((id) => id !== undefined && id !== null)
+        setFavorites(new Set(ids))
+      }
+    } catch {
+      messageApi.error('收藏列表获取失败')
+    }
+  }
+
+  useEffect(() => {
+    doSearch(1)
+    loadFavorites()
+  }, [])
+
+  const handleToggleFavorite = async (restaurantId) => {
+    const targetId = String(restaurantId)
+    try {
+      const res = await toggleFavorite(targetId)
+      if (res.code === 200) {
+        const action = res.data?.action
+        setFavorites((prev) => {
+          const next = new Set(prev)
+          if (action === 'remove') {
+            next.delete(targetId)
+          } else {
+            next.add(targetId)
+          }
+          return next
+        })
+        if (action === 'remove') {
+          messageApi.success('已取消收藏')
+        } else if (action === 'add') {
+          messageApi.success('已加入收藏')
+        }
+        loadFavorites()
+      } else {
+        messageApi.error('收藏失败')
+        if (res.message) {
+          messageApi.error(res.message)
+        }
+      }
+    } catch {
+      messageApi.error('收藏失败')
+    }
+  }
 
   const handleLogout = () => { logout(); navigate('/login') }
 
   return (
     <div style={S.page}>
+      {contextHolder}
       {/* 顶部导航 */}
       <header style={S.header}>
         <span style={S.logo} onClick={() => navigate('/dashboard')}>🍜 上海美食大数据平台</span>
@@ -132,7 +184,13 @@ export default function Search() {
           ) : (
             <div style={S.cardGrid}>
               {results.map((r) => (
-                <RestaurantCard key={r.id} data={r} onClick={() => setSelected(r)} />
+                <RestaurantCard
+                  key={r.id}
+                  data={r}
+                  onClick={() => setSelected(r)}
+                  isFavorite={favorites.has(r.id)}
+                  onToggleFavorite={() => handleToggleFavorite(r.id)}
+                />
               ))}
             </div>
           )}
@@ -174,7 +232,7 @@ export default function Search() {
   )
 }
 
-function RestaurantCard({ data, onClick }) {
+function RestaurantCard({ data, onClick, isFavorite, onToggleFavorite }) {
   return (
     <Card
       hoverable
@@ -182,7 +240,18 @@ function RestaurantCard({ data, onClick }) {
       style={S.rCard}
       styles={{ body: { padding: '14px 16px' } }}
     >
-      <div style={S.rName}>{data.name}</div>
+      <div style={S.rHeader}>
+        <div style={S.rName}>{data.name}</div>
+        <Button
+          type="text"
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleFavorite()
+          }}
+          icon={isFavorite ? <HeartFilled style={S.rFavIconActive} /> : <HeartOutlined style={S.rFavIcon} />}
+          style={S.rFavBtn}
+        />
+      </div>
       <div style={S.rTags}>
         <Tag color="red" style={{ fontSize: 11 }}>{data.cuisine_type}</Tag>
         <Tag color="default" style={{ fontSize: 11 }}>{data.district}</Tag>
@@ -216,7 +285,11 @@ const S = {
   cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 },
   pagination: { marginTop: 24, textAlign: 'center' },
   rCard: { background: '#161b22', border: '1px solid #30363d', cursor: 'pointer' },
-  rName: { fontSize: 15, fontWeight: 600, color: '#ffffff', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  rHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  rName: { fontSize: 15, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  rFavBtn: { padding: 0, height: 24, width: 24 },
+  rFavIcon: { color: '#8b949e', fontSize: 18 },
+  rFavIconActive: { color: '#e63946', fontSize: 18 },
   rTags: { marginBottom: 8 },
   rMeta: { display: 'flex', justifyContent: 'space-between', marginBottom: 6 },
   rRating: { color: '#ffd700', fontWeight: 600 },

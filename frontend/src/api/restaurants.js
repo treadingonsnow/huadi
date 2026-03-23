@@ -1,4 +1,4 @@
-import { get } from '@/utils/request'
+import request, { get } from '@/utils/request'
 
 const USE_MOCK = false
 
@@ -43,4 +43,18 @@ export const getRestaurantDetail = (id) => {
     return Promise.resolve({ code: 200, data: item || null })
   }
   return get(`/restaurants/${id}`)
+}
+
+export const getFavorites = (params) => {
+  if (USE_MOCK) {
+    return Promise.resolve({ code: 200, data: { items: [] } })
+  }
+  return get('/restaurants/favorites', params)
+}
+
+export const toggleFavorite = (restaurantId) => {
+  if (USE_MOCK) {
+    return Promise.resolve({ code: 200, data: { action: 'add', message: '已收藏' } })
+  }
+  return request.post('/restaurants/favorites', null, { params: { restaurant_id: restaurantId } })
 }
