@@ -30,7 +30,8 @@ export default function Search() {
 
   const doSearch = async (p = 1) => {
     setLoading(true)
-    const pr = filters.priceRange ? PRICE_RANGES[filters.priceRange] : {}
+    const hasPriceRange = filters.priceRange !== undefined && filters.priceRange !== null
+    const pr = hasPriceRange ? PRICE_RANGES[filters.priceRange] : {}
     const params = {
       keyword: keyword || undefined,
       cuisine: filters.cuisine,
