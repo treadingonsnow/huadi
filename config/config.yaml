@@ -9,10 +9,10 @@ app:
 
 database:
   mysql:
-    host: localhost
+    host: 192.168.54.18
     port: 3306
-    user: root
-    password: ""
+    user: team
+    password: "team123456"
     database: shanghai_food
     pool_size: 10
   redis:

@@ -1,6 +1,6 @@
 import { post } from '@/utils/request'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 export const login = (data) => {
   if (USE_MOCK) {

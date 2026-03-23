@@ -1,13 +1,65 @@
 # Scrapy Pipeline
 # 功能：数据清洗和入库
 # 包含：
-# - DataCleanPipeline       数据清洗
-#   - 去重：基于餐厅名称+地址+电话组合去重
-#   - 格式化：统一日期格式、价格格式、评分格式
-#   - 异常值处理：价格为0、评分超出范围等
-#   - 缺失值处理：标记或填充缺失字段
-#   - 数据脱敏：手机号、用户ID脱敏
-#   - 数据验证：完整性和合法性校验
-#
-# - MySQLPipeline           结构化数据写入MySQL（餐厅信息、评论、菜品）
-# - DataQualityPipeline     数据质量监控（记录清洗统计、异常数据进入待修复队列）
+
+
+
+import pymysql
+from itemadapter import ItemAdapter
+
+class ShanghaiFoodPipeline:
+    def __init__(self, mysql_config):
+        self.mysql_config = mysql_config
+        self.conn = None
+        self.cursor = None
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        # 从settings读取MySQL配置
+        return cls(mysql_config=crawler.settings.getdict("MYSQL_CONFIG"))
+
+    def open_spider(self, spider):
+        """爬虫启动时连接MySQL"""
+        try:
+            self.conn = pymysql.connect(
+                host=self.mysql_config["host"],
+                user=self.mysql_config["user"],
+                password=self.mysql_config["password"],
+                database=self.mysql_config["database"],
+                charset="utf8mb4"
+            )
+            self.cursor = self.conn.cursor()
+            spider.logger.warning("✅ MySQL连接成功")
+        except Exception as e:
+            spider.logger.error(f"❌ MySQL连接失败: {e}")
+            raise  # 连接失败直接终止爬虫
+
+    def process_item(self, item, spider):
+        """写入restaurant_info表"""
+        adapter = ItemAdapter(item)
+        sql = """
+        INSERT INTO restaurant_info (name, address, cuisine, avg_price, score, area, crawl_time)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        try:
+            self.cursor.execute(sql, (
+                adapter.get("name"),
+                adapter.get("address"),
+                adapter.get("cuisine"),
+                adapter.get("avg_price"),
+                adapter.get("score"),
+                adapter.get("area"),
+                adapter.get("crawl_time")
+            ))
+            self.conn.commit()
+        except Exception as e:
+            spider.logger.error(f"❌ 数据写入失败: {e}")
+            self.conn.rollback()
+        return item
+
+    def close_spider(self, spider):
+        """爬虫关闭时断开MySQL连接"""
+        if self.conn:
+            self.cursor.close()
+            self.conn.close()
+            spider.logger.warning("✅ MySQL连接已关闭")

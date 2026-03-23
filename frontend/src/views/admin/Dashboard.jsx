@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button, message } from 'antd'
+import { DownloadOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useUserStore } from '@/store'
 import {
   getOverview, getAreaDistribution, getCuisineDistribution,
@@ -22,6 +24,7 @@ export default function Dashboard() {
   const [ratingData, setRatingData] = useState([])
   const [keywords, setKeywords] = useState({ positive: [], negative: [] })
   const [areaPriceData, setAreaPriceData] = useState([])
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     getOverview().then((r) => r.code === 200 && setOverview(r.data))
@@ -35,6 +38,38 @@ export default function Dashboard() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
+  const handleExportReport = async () => {
+    setExporting(true)
+    message.loading({ content: '正在生成报告，请稍候…', key: 'export', duration: 0 })
+    try {
+      const res = await fetch('/api/v1/report/generate', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      if (!res.ok) {
+        let errMsg = `报告生成失败 (HTTP ${res.status})`
+        try { const j = await res.json(); errMsg = j.message || errMsg } catch {}
+        message.error({ content: errMsg, key: 'export' })
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.style.display = 'none'
+      const now = new Date()
+      a.download = `上海美食分析报告_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`
+      document.body.appendChild(a)   // 必须插入 DOM 才能触发下载
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 30000)  // 延迟释放，确保下载完成
+      message.success({ content: '报告已下载', key: 'export' })
+    } catch (e) {
+      message.error({ content: '导出失败：' + e.message, key: 'export' })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div style={S.page}>
       {/* 顶部标题栏 */}
@@ -47,6 +82,21 @@ export default function Dashboard() {
         <div style={S.headerRight}>
           <span style={S.navLink} onClick={() => navigate('/search')}>餐厅搜索</span>
           <span style={S.divider}>|</span>
+          <span style={S.navLink} onClick={() => navigate('/import')}>数据导入</span>
+          <span style={S.divider}>|</span>
+          <span style={S.navLink} onClick={() => navigate('/predict')}>评分预测</span>
+          <span style={S.divider}>|</span>
+          <span style={S.navLink} onClick={() => navigate('/clean-logs')}>清洗日志</span>
+          <span style={S.divider}>|</span>
+          <Button
+            size="small"
+            icon={exporting ? <LoadingOutlined /> : <DownloadOutlined />}
+            loading={exporting}
+            onClick={handleExportReport}
+            style={{ background: '#e63946', borderColor: '#e63946', color: '#fff', marginRight: 8 }}
+          >
+            导出报告
+          </Button>
           <span style={S.navLink} onClick={handleLogout}>退出登录</span>
         </div>
       </header>
