@@ -6,7 +6,7 @@
 # - POST /favorites        收藏/取消收藏餐厅（需登录）
 # - GET  /favorites        获取用户收藏列表（需登录）
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, desc
 from typing import Optional
@@ -19,6 +19,7 @@ from ...models.review import Review
 from ...models.favorite import UserFavorite
 from ...models.user import User
 from ...core.deps import get_current_user
+from ...core.security import verify_token
 from ...response import success, error
 
 router = APIRouter()
@@ -56,8 +57,11 @@ def search_restaurants(
         price_max: Optional[Decimal] = Query(None, description="最高人均消费"),
         rating_min: Optional[Decimal] = Query(None, description="最低评分"),
         sort_by: str = Query("default", description="排序：default/rating/price"),
+        favorites_only: bool = Query(False, description="只看已收藏"),
+        exclude_favorites: bool = Query(False, description="排除已收藏"),
         page: int = Query(1, ge=1, description="页码"),
         page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+        request: Request = None,
         db: Session = Depends(get_db)
 ):
     """餐厅搜索接口"""
@@ -81,6 +85,28 @@ def search_restaurants(
     query = db.query(Restaurant)
     if conditions:
         query = query.filter(and_(*conditions))
+
+    # 收藏筛选：从 Authorization header 解析用户（可选鉴权）
+    if favorites_only or exclude_favorites:
+        current_user_id = None
+        auth_header = request.headers.get("authorization", "") if request else ""
+        if auth_header.startswith("Bearer "):
+            payload = verify_token(auth_header[7:])
+            if payload:
+                current_user_id = payload.get("sub")
+
+        if current_user_id is not None:
+            fav_ids = [
+                row.restaurant_id
+                for row in db.query(UserFavorite.restaurant_id).filter(
+                    UserFavorite.user_id == int(current_user_id)
+                ).all()
+            ]
+            if favorites_only:
+                query = query.filter(Restaurant.restaurant_id.in_(fav_ids)) if fav_ids else query.filter(False)
+            elif exclude_favorites:
+                if fav_ids:
+                    query = query.filter(Restaurant.restaurant_id.notin_(fav_ids))
 
     if sort_by == "rating":
         query = query.order_by(desc(Restaurant.rating_overall))
