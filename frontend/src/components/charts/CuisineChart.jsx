@@ -16,7 +16,7 @@ export default function CuisineChart({ data }) {
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
-      center: ['28%', '50%'],
+      center: ['32%', '50%'],
       avoidLabelOverlap: false,
       label: { show: false },
       emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#ffd700' } },
