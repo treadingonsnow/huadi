@@ -44,6 +44,8 @@ export default function AreaMap({ data }) {
       type: 'map',
       map: 'shanghai',
       roam: false,
+      layoutCenter: ['50%', '49%'],
+      layoutSize: '95%',
       label: { show: true, color: '#ffffff', fontSize: 10 },
       emphasis: { label: { color: '#ffd700' }, itemStyle: { areaColor: '#ffd700' } },
       data,

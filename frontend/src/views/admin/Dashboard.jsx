@@ -183,7 +183,7 @@ export default function Dashboard() {
           <RatingChart data={ratingData} />
         </ChartCard>
 
-        <ChartCard title="各区人均消费对比" style={{ gridColumn: 'span 2' }}>
+        <ChartCard title="各区人均消费对比" style={{ gridColumn: 'span 2', gridRow: 'span 2' }}>
           <AreaPriceChart data={areaPriceData} />
         </ChartCard>
 
@@ -192,7 +192,7 @@ export default function Dashboard() {
         </ChartCard>
       </div>
 
-      <footer style={S.footer}>数据来源：美团 · 上海美食大数据分析平台 © 2026</footer>
+      <footer style={S.footer}>数据来源：大众点评·上海美食大数据分析平台 © 2026</footer>
     </div>
   )
 }
