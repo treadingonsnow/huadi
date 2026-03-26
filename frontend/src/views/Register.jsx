@@ -35,7 +35,7 @@ export default function Register() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <div style={styles.logo}>🍜</div>
+        <img src="/aaa.png" alt="东方明珠" style={styles.logo} />
         <h1 style={styles.title}>创建账号</h1>
         <p style={styles.subtitle}>Shanghai Food Analytics</p>
         <Form form={form} onFinish={onFinish} size="large" style={{ marginTop: 32 }}>
@@ -94,7 +94,7 @@ const styles = {
     backdropFilter: 'blur(10px)',
     boxShadow: '0 8px 32px rgba(230,57,70,0.15)',
   },
-  logo: { fontSize: 56, marginBottom: 8 },
+  logo: { width: 80, height: 80, borderRadius: 14, objectFit: 'cover', marginBottom: 8 },
   title: { color: '#ffffff', fontSize: 22, fontWeight: 700, margin: 0 },
   subtitle: { color: '#ffd700', fontSize: 13, marginTop: 4, letterSpacing: 2 },
   input: { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' },

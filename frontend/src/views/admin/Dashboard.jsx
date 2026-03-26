@@ -112,7 +112,7 @@ export default function Dashboard() {
       {/* 顶部标题栏 */}
       <header style={S.header}>
         <div style={S.headerLeft}>
-          <span style={S.headerIcon}>🍜</span>
+          <img src="/aaa.png" alt="东方明珠" style={S.headerIcon} />
           <span style={S.headerTitle}>上海美食大数据分析平台</span>
           <span style={S.headerSub}>Shanghai Food Analytics Dashboard</span>
         </div>
@@ -226,7 +226,7 @@ const S = {
     flexShrink: 0,
   },
   headerLeft: { display: 'flex', alignItems: 'center', gap: 12 },
-  headerIcon: { fontSize: 28 },
+  headerIcon: { width: 40, height: 40, borderRadius: 5, objectFit: 'cover' },
   headerTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: 1 },
   headerSub: { fontSize: 12, color: '#ffd700', letterSpacing: 2 },
   headerRight: { display: 'flex', alignItems: 'center', gap: 10 },
