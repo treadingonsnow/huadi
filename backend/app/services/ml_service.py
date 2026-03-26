@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import pickle
+import tempfile
 from typing import Any
 
 import numpy as np
@@ -16,7 +17,7 @@ from sklearn.preprocessing import LabelEncoder
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-MODEL_PATH = "/tmp/shanghai_food_rf_model.pkl"
+MODEL_PATH = os.path.join(tempfile.gettempdir(), "shanghai_food_rf_model.pkl")
 
 
 class MLService:

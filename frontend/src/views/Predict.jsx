@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Button, Form, Select, InputNumber, Slider, Card,
-  Statistic, Alert, Tag, Progress, Spin, Divider, message,
+  Statistic, Alert, Tag, Progress, Spin, Divider,
 } from 'antd'
 import {
   ExperimentOutlined, ThunderboltOutlined, RobotOutlined, ArrowLeftOutlined,
@@ -20,6 +20,7 @@ export default function Predict() {
   const [predicting, setPredicting] = useState(false)
   const [prediction, setPrediction] = useState(null)
   const [predError, setPredError] = useState(null)
+  const [trainFeedback, setTrainFeedback] = useState(null)
 
   const loadInfo = () => {
     getModelInfo().then((res) => res.code === 200 && setModelInfo(res.data))
@@ -30,16 +31,21 @@ export default function Predict() {
   const handleTrain = async () => {
     setTraining(true)
     setPrediction(null)
+    setTrainFeedback(null)
     try {
       const res = await trainModel()
       if (res.code === 200) {
-        message.success(`训练完成！R² = ${res.data.r2}，RMSE = ${res.data.rmse}`)
+        setTrainFeedback({
+          type: 'success',
+          text: res.message || `训练完成！R² = ${res.data.r2}，RMSE = ${res.data.rmse}`,
+        })
         setModelInfo({ trained: true, ...res.data })
       } else {
-        message.error(res.message || '训练失败')
+        setTrainFeedback({ type: 'error', text: res.message || '训练失败' })
       }
-    } catch {
-      message.error('训练请求失败')
+    } catch (err) {
+      const backendMsg = err?.response?.data?.message
+      setTrainFeedback({ type: 'error', text: backendMsg || '训练请求失败' })
     } finally {
       setTraining(false)
     }
@@ -154,6 +160,14 @@ export default function Predict() {
           <span style={{ color: '#8b949e', fontSize: 12, marginLeft: 12 }}>
             算法：随机森林回归（n_estimators=100）·&nbsp;特征：菜系 + 区域 + 人均消费 → 预测评分
           </span>
+          {trainFeedback && (
+            <Alert
+              message={trainFeedback.text}
+              type={trainFeedback.type}
+              showIcon
+              style={{ marginTop: 12 }}
+            />
+          )}
         </div>
 
         <div style={S.twoCol}>

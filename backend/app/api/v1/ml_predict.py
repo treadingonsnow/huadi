@@ -25,10 +25,13 @@ def train_model(db: Session = Depends(get_db)):
     try:
         result = svc.train()
     except ValueError as exc:
-        return error(message=str(exc), code=422)
+        return error(message=f"训练失败：{exc}", code=422)
     except Exception as exc:
         return error(message=f"训练失败：{exc}", code=500)
-    return success(data=result)
+    return success(
+        data=result,
+        message=f"训练成功：样本 {result.get('sample_count', 0)} 条，R²={result.get('r2')}, RMSE={result.get('rmse')}",
+    )
 
 
 @router.get("/info")
