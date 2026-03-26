@@ -13,6 +13,24 @@ from config.dictionaries.sentiment_dict import SENTIMENT_DICT
 
 
 class AnalysisService:
+    SHANGHAI_DISTRICTS = (
+        "浦东新区",
+        "黄浦区",
+        "徐汇区",
+        "静安区",
+        "长宁区",
+        "普陀区",
+        "虹口区",
+        "杨浦区",
+        "闵行区",
+        "宝山区",
+        "嘉定区",
+        "松江区",
+        "青浦区",
+        "奉贤区",
+        "金山区",
+        "崇明区",
+    )
     PRICE_RANGES = (
         ("50元以下", 0, 50),
         ("51-100元", 50, 100),
@@ -165,7 +183,20 @@ class AnalysisService:
                 """
             )
         ).mappings().all()
-        return {"districts": [dict(row) for row in rows]}
+        avg_price_by_district = {row["name"]: float(row["avg_price"]) for row in rows}
+        districts: list[dict[str, Any]] = [
+            {"name": district, "avg_price": round(avg_price_by_district.get(district, 0.0), 2)}
+            for district in self.SHANGHAI_DISTRICTS
+        ]
+
+        extra_districts = [
+            {"name": row["name"], "avg_price": float(row["avg_price"])}
+            for row in rows
+            if row["name"] not in self.SHANGHAI_DISTRICTS
+        ]
+        districts.extend(extra_districts)
+        districts.sort(key=lambda item: (-item["avg_price"], item["name"]))
+        return {"districts": districts}
 
     def get_review_keywords(self, limit: int = 30) -> dict[str, list[dict[str, Any]]]:
         positive_rows = self.db.execute(

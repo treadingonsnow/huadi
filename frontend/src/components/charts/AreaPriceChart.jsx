@@ -18,7 +18,7 @@ export default function AreaPriceChart({ data }) {
     yAxis: {
       type: 'category',
       data: sorted.map((d) => d.name),
-      axisLabel: { color: '#8b949e', fontSize: 11 },
+      axisLabel: { color: '#8b949e', fontSize: 11, interval: 0 },
       axisLine: { lineStyle: { color: '#30363d' } },
     },
     series: [{
