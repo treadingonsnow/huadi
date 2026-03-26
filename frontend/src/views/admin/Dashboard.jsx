@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Dropdown, message } from 'antd'
-import { DownloadOutlined, DownOutlined, LoadingOutlined } from '@ant-design/icons'
+import {
+  DownloadOutlined,
+  DownOutlined,
+  LoadingOutlined,
+  SearchOutlined,
+  InboxOutlined,
+  LineChartOutlined,
+  FileSearchOutlined,
+} from '@ant-design/icons'
 import { useUserStore } from '@/store'
 import {
   getOverview, getAreaDistribution, getCuisineDistribution,
@@ -26,6 +34,8 @@ export default function Dashboard() {
   const [keywords, setKeywords] = useState({ positive: [], negative: [] })
   const [areaPriceData, setAreaPriceData] = useState([])
   const [exporting, setExporting] = useState(false)
+  const [hoveredNav, setHoveredNav] = useState('')
+  const [accountHovered, setAccountHovered] = useState(false)
 
   const currentAccount = (() => {
     if (!token) return '未登录'
@@ -90,6 +100,13 @@ export default function Dashboard() {
     }
   }
 
+  const navItems = [
+    { key: 'search', label: '餐厅搜索', icon: <SearchOutlined />, path: '/search' },
+    { key: 'import', label: '数据导入', icon: <InboxOutlined />, path: '/import' },
+    { key: 'predict', label: '评分预测', icon: <LineChartOutlined />, path: '/predict' },
+    { key: 'clean', label: '清洗日志', icon: <FileSearchOutlined />, path: '/clean-logs' },
+  ]
+
   return (
     <div style={S.page}>
       {/* 顶部标题栏 */}
@@ -100,10 +117,18 @@ export default function Dashboard() {
           <span style={S.headerSub}>Shanghai Food Analytics Dashboard</span>
         </div>
         <div style={S.headerRight}>
-          <span style={S.topBtn} onClick={() => navigate('/search')}>餐厅搜索</span>
-          <span style={S.topBtn} onClick={() => navigate('/import')}>数据导入</span>
-          <span style={S.topBtn} onClick={() => navigate('/predict')}>评分预测</span>
-          <span style={S.topBtn} onClick={() => navigate('/clean-logs')}>清洗日志</span>
+          {navItems.map((item) => (
+            <span
+              key={item.key}
+              style={hoveredNav === item.key ? { ...S.topBtn, ...S.topBtnHover } : S.topBtn}
+              onMouseEnter={() => setHoveredNav(item.key)}
+              onMouseLeave={() => setHoveredNav('')}
+              onClick={() => navigate(item.path)}
+            >
+              <span style={S.topBtnIcon}>{item.icon}</span>
+              <span>{item.label}</span>
+            </span>
+          ))}
           <Button
             size="small"
             icon={exporting ? <LoadingOutlined /> : <DownloadOutlined />}
@@ -114,7 +139,11 @@ export default function Dashboard() {
             导出报告
           </Button>
           <Dropdown menu={accountMenu} trigger={['click']}>
-            <span style={S.accountName}>
+            <span
+              style={accountHovered ? { ...S.accountName, ...S.accountNameHover } : S.accountName}
+              onMouseEnter={() => setAccountHovered(true)}
+              onMouseLeave={() => setAccountHovered(false)}
+            >
               当前账号：{currentAccount} <DownOutlined style={{ fontSize: 11 }} />
             </span>
           </Dropdown>
@@ -200,34 +229,57 @@ const S = {
   headerIcon: { fontSize: 28 },
   headerTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: 1 },
   headerSub: { fontSize: 12, color: '#ffd700', letterSpacing: 2 },
-  headerRight: { display: 'flex', alignItems: 'center', gap: 8 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 10 },
   topBtn: {
-    color: '#dbe4ff',
+    color: '#eaf1ff',
     cursor: 'pointer',
     fontSize: 13,
-    padding: '6px 10px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.04)',
+    fontWeight: 500,
+    padding: '6px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(122,162,255,0.35)',
+    background: 'linear-gradient(180deg, rgba(67,91,155,0.18) 0%, rgba(35,49,84,0.38) 100%)',
     transition: 'all 0.2s ease',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 10px rgba(0,0,0,0.18)',
+  },
+  topBtnHover: {
+    transform: 'translateY(-1px)',
+    border: '1px solid rgba(137,178,255,0.7)',
+    background: 'linear-gradient(180deg, rgba(88,126,220,0.38) 0%, rgba(48,77,144,0.5) 100%)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 18px rgba(62,110,226,0.3)',
+  },
+  topBtnIcon: {
+    fontSize: 12,
+    color: '#d7e5ff',
   },
   exportBtn: {
-    background: 'linear-gradient(90deg, #ff4d5a 0%, #e63946 100%)',
-    borderColor: '#e63946',
+    background: 'linear-gradient(120deg, #ff5e6d 0%, #ff3a49 55%, #ff6571 100%)',
+    borderColor: '#ff4a59',
     color: '#fff',
-    borderRadius: 8,
-    height: 30,
-    paddingInline: 12,
-    boxShadow: '0 4px 12px rgba(230,57,70,0.35)',
+    borderRadius: 10,
+    height: 32,
+    paddingInline: 14,
+    fontWeight: 600,
+    boxShadow: '0 8px 18px rgba(255,74,89,0.34), inset 0 1px 0 rgba(255,255,255,0.35)',
   },
   accountName: {
     color: '#e8ecff',
     fontSize: 13,
     cursor: 'pointer',
-    padding: '6px 10px',
-    borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'rgba(255,255,255,0.04)',
+    fontWeight: 500,
+    padding: '6px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(166,185,230,0.32)',
+    background: 'linear-gradient(180deg, rgba(78,92,128,0.2) 0%, rgba(43,52,76,0.42) 100%)',
+    transition: 'all 0.2s ease',
+  },
+  accountNameHover: {
+    border: '1px solid rgba(196,213,255,0.55)',
+    background: 'linear-gradient(180deg, rgba(99,121,168,0.3) 0%, rgba(58,76,121,0.48) 100%)',
+    boxShadow: '0 8px 18px rgba(58,92,172,0.26)',
   },
   overviewRow: {
     display: 'grid',

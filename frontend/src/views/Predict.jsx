@@ -4,16 +4,18 @@ import {
   Statistic, Alert, Tag, Progress, Spin, Divider,
 } from 'antd'
 import {
-  ExperimentOutlined, ThunderboltOutlined, RobotOutlined, ArrowLeftOutlined,
+  ExperimentOutlined, ThunderboltOutlined, RobotOutlined, HomeOutlined, LogoutOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getModelInfo, trainModel, predictRating } from '@/api/ml'
+import { useUserStore } from '@/store'
 
 const CUISINES = ['川菜', '本帮菜', '日料', '火锅', '粤菜', '西餐', '烧烤', '面食', '海鲜', '台湾菜', '北京菜', '甜品饮品']
 const DISTRICTS = ['浦东新区', '黄浦区', '徐汇区', '静安区', '长宁区', '普陀区', '虹口区', '杨浦区', '闵行区', '宝山区', '嘉定区', '松江区', '青浦区', '奉贤区', '金山区', '崇明区']
 
 export default function Predict() {
   const navigate = useNavigate()
+  const logout = useUserStore((s) => s.logout)
   const [form] = Form.useForm()
   const [modelInfo, setModelInfo] = useState(null)
   const [training, setTraining] = useState(false)
@@ -21,6 +23,9 @@ export default function Predict() {
   const [prediction, setPrediction] = useState(null)
   const [predError, setPredError] = useState(null)
   const [trainFeedback, setTrainFeedback] = useState(null)
+  const [hoveredHeaderBtn, setHoveredHeaderBtn] = useState('')
+
+  const handleLogout = () => { logout(); navigate('/login') }
 
   const loadInfo = () => {
     getModelInfo().then((res) => res.code === 200 && setModelInfo(res.data))
@@ -93,12 +98,33 @@ export default function Predict() {
   return (
     <div style={S.page}>
       <header style={S.header}>
-        <Button type="text" icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/dashboard')} style={{ color: '#8b949e' }}>
-          返回大屏
-        </Button>
-        <span style={S.headerTitle}><RobotOutlined /> 机器学习评分预测</span>
-        <span />
+        <div style={S.headerTitleWrap}>
+          <span style={S.headerTitleIcon}><RobotOutlined /></span>
+          <span style={S.headerTitleText}>
+            <span style={S.headerTitleMain}>评分预测</span>
+            <span style={S.headerTitleSub}>Rating Prediction</span>
+          </span>
+        </div>
+        <div style={S.headerRight}>
+          <span
+            style={hoveredHeaderBtn === 'dashboard' ? { ...S.topBtn, ...S.topBtnHover } : S.topBtn}
+            onMouseEnter={() => setHoveredHeaderBtn('dashboard')}
+            onMouseLeave={() => setHoveredHeaderBtn('')}
+            onClick={() => navigate('/dashboard')}
+          >
+            <HomeOutlined style={S.topBtnIcon} />
+            <span>返回主页</span>
+          </span>
+          <span
+            style={hoveredHeaderBtn === 'logout' ? { ...S.topBtn, ...S.topBtnHover } : S.topBtn}
+            onMouseEnter={() => setHoveredHeaderBtn('logout')}
+            onMouseLeave={() => setHoveredHeaderBtn('')}
+            onClick={handleLogout}
+          >
+            <LogoutOutlined style={S.topBtnIcon} />
+            <span>退出登录</span>
+          </span>
+        </div>
       </header>
 
       <div style={S.body}>
@@ -284,7 +310,48 @@ const S = {
     padding: '0 24px', height: 56,
     background: '#161b22', borderBottom: '1px solid #30363d',
   },
-  headerTitle: { fontSize: 16, fontWeight: 700, color: '#ffffff' },
+  headerTitleWrap: { display: 'inline-flex', alignItems: 'center', gap: 10 },
+  headerTitleIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ffe6ea',
+    fontSize: 14,
+    background: 'linear-gradient(135deg, rgba(230,57,70,0.95) 0%, rgba(255,107,53,0.9) 100%)',
+    boxShadow: '0 6px 16px rgba(230,57,70,0.35)',
+  },
+  headerTitleText: { display: 'inline-flex', flexDirection: 'column', lineHeight: 1.1, gap: 2 },
+  headerTitleMain: { fontSize: 16, fontWeight: 700, color: '#ffffff' },
+  headerTitleSub: { fontSize: 11, color: '#8b949e', letterSpacing: 0.6 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  topBtn: {
+    color: '#eaf1ff',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+    padding: '6px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(122,162,255,0.35)',
+    background: 'linear-gradient(180deg, rgba(67,91,155,0.18) 0%, rgba(35,49,84,0.38) 100%)',
+    transition: 'all 0.2s ease',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 10px rgba(0,0,0,0.18)',
+  },
+  topBtnHover: {
+    transform: 'translateY(-1px)',
+    border: '1px solid rgba(137,178,255,0.7)',
+    background: 'linear-gradient(180deg, rgba(88,126,220,0.38) 0%, rgba(48,77,144,0.5) 100%)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 18px rgba(62,110,226,0.3)',
+  },
+  topBtnIcon: {
+    fontSize: 12,
+    color: '#d7e5ff',
+  },
   body: { maxWidth: 1100, margin: '0 auto', padding: '24px 16px' },
   section: {
     background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',

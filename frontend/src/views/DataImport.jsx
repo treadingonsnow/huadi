@@ -5,9 +5,10 @@ import {
 } from 'antd'
 import {
   InboxOutlined, DatabaseOutlined,
-  CheckCircleOutlined, ArrowLeftOutlined,
+  CheckCircleOutlined, HomeOutlined, LogoutOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { useUserStore } from '@/store'
 
 const { Dragger } = Upload
 const { Option } = Select
@@ -24,12 +25,16 @@ const DEST_OPTIONS = [
 
 export default function DataImport() {
   const navigate = useNavigate()
+  const logout = useUserStore((s) => s.logout)
   const [form] = Form.useForm()
   const [dest, setDest] = useState('mysql')
   const [fileList, setFileList] = useState([])
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [hoveredHeaderBtn, setHoveredHeaderBtn] = useState('')
+
+  const handleLogout = () => { logout(); navigate('/login') }
 
   const handleSubmit = async (values) => {
     if (fileList.length === 0) {
@@ -70,16 +75,33 @@ export default function DataImport() {
   return (
     <div style={S.page}>
       <header style={S.header}>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/dashboard')}
-          style={{ color: '#8b949e' }}
-        >
-          返回大屏
-        </Button>
-        <span style={S.headerTitle}>数据导入</span>
-        <span />
+        <div style={S.headerTitleWrap}>
+          <span style={S.headerTitleIcon}><InboxOutlined /></span>
+          <span style={S.headerTitleText}>
+            <span style={S.headerTitleMain}>数据导入</span>
+            <span style={S.headerTitleSub}>Data Import</span>
+          </span>
+        </div>
+        <div style={S.headerRight}>
+          <span
+            style={hoveredHeaderBtn === 'dashboard' ? { ...S.topBtn, ...S.topBtnHover } : S.topBtn}
+            onMouseEnter={() => setHoveredHeaderBtn('dashboard')}
+            onMouseLeave={() => setHoveredHeaderBtn('')}
+            onClick={() => navigate('/dashboard')}
+          >
+            <HomeOutlined style={S.topBtnIcon} />
+            <span>返回主页</span>
+          </span>
+          <span
+            style={hoveredHeaderBtn === 'logout' ? { ...S.topBtn, ...S.topBtnHover } : S.topBtn}
+            onMouseEnter={() => setHoveredHeaderBtn('logout')}
+            onMouseLeave={() => setHoveredHeaderBtn('')}
+            onClick={handleLogout}
+          >
+            <LogoutOutlined style={S.topBtnIcon} />
+            <span>退出登录</span>
+          </span>
+        </div>
       </header>
 
       <div style={S.body}>
@@ -230,7 +252,48 @@ const S = {
     padding: '0 24px', height: 56,
     background: '#161b22', borderBottom: '1px solid #30363d',
   },
-  headerTitle: { fontSize: 16, fontWeight: 700, color: '#ffffff' },
+  headerTitleWrap: { display: 'inline-flex', alignItems: 'center', gap: 10 },
+  headerTitleIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ffe6ea',
+    fontSize: 14,
+    background: 'linear-gradient(135deg, rgba(230,57,70,0.95) 0%, rgba(255,107,53,0.9) 100%)',
+    boxShadow: '0 6px 16px rgba(230,57,70,0.35)',
+  },
+  headerTitleText: { display: 'inline-flex', flexDirection: 'column', lineHeight: 1.1, gap: 2 },
+  headerTitleMain: { fontSize: 16, fontWeight: 700, color: '#ffffff' },
+  headerTitleSub: { fontSize: 11, color: '#8b949e', letterSpacing: 0.6 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  topBtn: {
+    color: '#eaf1ff',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+    padding: '6px 12px',
+    borderRadius: 10,
+    border: '1px solid rgba(122,162,255,0.35)',
+    background: 'linear-gradient(180deg, rgba(67,91,155,0.18) 0%, rgba(35,49,84,0.38) 100%)',
+    transition: 'all 0.2s ease',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 10px rgba(0,0,0,0.18)',
+  },
+  topBtnHover: {
+    transform: 'translateY(-1px)',
+    border: '1px solid rgba(137,178,255,0.7)',
+    background: 'linear-gradient(180deg, rgba(88,126,220,0.38) 0%, rgba(48,77,144,0.5) 100%)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 18px rgba(62,110,226,0.3)',
+  },
+  topBtnIcon: {
+    fontSize: 12,
+    color: '#d7e5ff',
+  },
   body: { maxWidth: 1200, margin: '0 auto', padding: '24px 16px' },
   section: {
     background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
