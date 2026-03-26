@@ -100,20 +100,16 @@ export default function Dashboard() {
           <span style={S.headerSub}>Shanghai Food Analytics Dashboard</span>
         </div>
         <div style={S.headerRight}>
-          <span style={S.navLink} onClick={() => navigate('/search')}>餐厅搜索</span>
-          <span style={S.divider}>|</span>
-          <span style={S.navLink} onClick={() => navigate('/import')}>数据导入</span>
-          <span style={S.divider}>|</span>
-          <span style={S.navLink} onClick={() => navigate('/predict')}>评分预测</span>
-          <span style={S.divider}>|</span>
-          <span style={S.navLink} onClick={() => navigate('/clean-logs')}>清洗日志</span>
-          <span style={S.divider}>|</span>
+          <span style={S.topBtn} onClick={() => navigate('/search')}>餐厅搜索</span>
+          <span style={S.topBtn} onClick={() => navigate('/import')}>数据导入</span>
+          <span style={S.topBtn} onClick={() => navigate('/predict')}>评分预测</span>
+          <span style={S.topBtn} onClick={() => navigate('/clean-logs')}>清洗日志</span>
           <Button
             size="small"
             icon={exporting ? <LoadingOutlined /> : <DownloadOutlined />}
             loading={exporting}
             onClick={handleExportReport}
-            style={{ background: '#e63946', borderColor: '#e63946', color: '#fff', marginRight: 8 }}
+            style={S.exportBtn}
           >
             导出报告
           </Button>
@@ -205,9 +201,34 @@ const S = {
   headerTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: 1 },
   headerSub: { fontSize: 12, color: '#ffd700', letterSpacing: 2 },
   headerRight: { display: 'flex', alignItems: 'center', gap: 8 },
-  accountName: { color: '#c9d1d9', fontSize: 13, marginRight: 6, cursor: 'pointer' },
-  navLink: { color: '#8b949e', cursor: 'pointer', fontSize: 13, ':hover': { color: '#ffd700' } },
-  divider: { color: '#30363d' },
+  topBtn: {
+    color: '#dbe4ff',
+    cursor: 'pointer',
+    fontSize: 13,
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(255,255,255,0.04)',
+    transition: 'all 0.2s ease',
+  },
+  exportBtn: {
+    background: 'linear-gradient(90deg, #ff4d5a 0%, #e63946 100%)',
+    borderColor: '#e63946',
+    color: '#fff',
+    borderRadius: 8,
+    height: 30,
+    paddingInline: 12,
+    boxShadow: '0 4px 12px rgba(230,57,70,0.35)',
+  },
+  accountName: {
+    color: '#e8ecff',
+    fontSize: 13,
+    cursor: 'pointer',
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(255,255,255,0.04)',
+  },
   overviewRow: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
