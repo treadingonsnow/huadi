@@ -97,7 +97,11 @@ class ImportService:
         self._log("load", f"文件加载完成，共 {raw_count} 条原始记录", record_count=raw_count)
 
         # 1. 字段名映射
-        df.columns = [COLUMN_ALIASES.get(c.strip(), c.strip()) for c in df.columns]
+        normalized_columns: list[str] = []
+        for col in df.columns:
+            key = str(col).strip()
+            normalized_columns.append(COLUMN_ALIASES.get(key, COLUMN_ALIASES.get(key.lower(), key)))
+        df.columns = normalized_columns
         if "restaurant_name" not in df.columns:
             raise ValueError("文件缺少餐厅名称字段（name / restaurant_name / 餐厅名称）")
 
