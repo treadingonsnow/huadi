@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, message } from 'antd'
-import { DownloadOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Button, Dropdown, message } from 'antd'
+import { DownloadOutlined, DownOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useUserStore } from '@/store'
 import {
   getOverview, getAreaDistribution, getCuisineDistribution,
@@ -17,6 +17,7 @@ import WordCloud from '@/components/charts/WordCloud'
 export default function Dashboard() {
   const navigate = useNavigate()
   const logout = useUserStore((s) => s.logout)
+  const token = useUserStore((s) => s.token)
   const [overview, setOverview] = useState(null)
   const [areaData, setAreaData] = useState([])
   const [cuisineData, setCuisineData] = useState([])
@@ -25,6 +26,19 @@ export default function Dashboard() {
   const [keywords, setKeywords] = useState({ positive: [], negative: [] })
   const [areaPriceData, setAreaPriceData] = useState([])
   const [exporting, setExporting] = useState(false)
+
+  const currentAccount = (() => {
+    if (!token) return '未登录'
+    try {
+      const payloadBase64 = token.split('.')[1]
+      if (!payloadBase64) return '未登录'
+      const normalized = payloadBase64.replace(/-/g, '+').replace(/_/g, '/')
+      const decoded = JSON.parse(atob(normalized))
+      return decoded.username || decoded.sub || '未登录'
+    } catch {
+      return '未登录'
+    }
+  })()
 
   useEffect(() => {
     getOverview().then((r) => r.code === 200 && setOverview(r.data))
@@ -37,6 +51,12 @@ export default function Dashboard() {
   }, [])
 
   const handleLogout = () => { logout(); navigate('/login') }
+  const accountMenu = {
+    items: [{ key: 'logout', label: '退出登录' }],
+    onClick: ({ key }) => {
+      if (key === 'logout') handleLogout()
+    },
+  }
 
   const handleExportReport = async () => {
     setExporting(true)
@@ -97,7 +117,11 @@ export default function Dashboard() {
           >
             导出报告
           </Button>
-          <span style={S.navLink} onClick={handleLogout}>退出登录</span>
+          <Dropdown menu={accountMenu} trigger={['click']}>
+            <span style={S.accountName}>
+              当前账号：{currentAccount} <DownOutlined style={{ fontSize: 11 }} />
+            </span>
+          </Dropdown>
         </div>
       </header>
 
@@ -181,6 +205,7 @@ const S = {
   headerTitle: { fontSize: 20, fontWeight: 700, color: '#ffffff', letterSpacing: 1 },
   headerSub: { fontSize: 12, color: '#ffd700', letterSpacing: 2 },
   headerRight: { display: 'flex', alignItems: 'center', gap: 8 },
+  accountName: { color: '#c9d1d9', fontSize: 13, marginRight: 6, cursor: 'pointer' },
   navLink: { color: '#8b949e', cursor: 'pointer', fontSize: 13, ':hover': { color: '#ffd700' } },
   divider: { color: '#30363d' },
   overviewRow: {
