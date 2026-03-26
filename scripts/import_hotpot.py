@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from sqlalchemy import create_engine, text
 
 # ── 配置 ──────────────────────────────────────────────────
-MYSQL_URL = "mysql+pymysql://team:team123456@192.168.54.17:3306/shanghai_food?charset=utf8mb4"
+MYSQL_URL = "mysql+pymysql://team:team123456@192.168.54.48:3306/shanghai_food?charset=utf8mb4"
 
 # ── 数据：从 notebook 输出提取的真实餐厅名 ─────────────────
 REAL_NAMES = [
