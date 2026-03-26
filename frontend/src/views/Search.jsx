@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { searchRestaurants, getFavorites, toggleFavorite } from '@/api/restaurants'
 import { useUserStore } from '@/store'
 
-const CUISINES = ['川菜', '本帮菜', '日料', '火锅', '粤菜', '西餐', '烧烤', '面食', '海鲜', '台湾菜', '北京菜', '甜品饮品']
+const CUISINES = ['甜品/饮品', '本帮菜', '面食/小吃', '日本料理', '韩国料理', '火锅', '粤菜/港式', '东南亚菜', '烧烤/烤肉', '自助餐', '西餐', '川湘菜', '北方菜', '海鲜', '江浙菜', '素食']
 const DISTRICTS = ['浦东新区', '黄浦区', '徐汇区', '静安区', '长宁区', '普陀区', '虹口区', '杨浦区', '闵行区', '宝山区', '嘉定区', '松江区', '青浦区', '奉贤区', '金山区', '崇明区']
 const PRICE_RANGES = [
   { label: '50元以下', min: 0, max: 50 },

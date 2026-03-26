@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 import {
-  Upload, Button, Select, Form, Input, InputNumber,
-  Steps, Alert, Descriptions, message, Divider, Tag,
+  Upload, Button, Select, Form, Input,
+  Steps, Alert, Descriptions, message, Tag,
 } from 'antd'
 import {
-  InboxOutlined, DatabaseOutlined, CloudUploadOutlined,
-  TableOutlined, CheckCircleOutlined, ArrowLeftOutlined,
+  InboxOutlined, DatabaseOutlined,
+  CheckCircleOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 
@@ -19,20 +19,6 @@ const DEST_OPTIONS = [
     icon: <DatabaseOutlined />,
     color: '#e63946',
     desc: '直接写入 restaurant_info 表，立即可用于图表展示',
-  },
-  {
-    value: 'hdfs',
-    label: 'HDFS 分布式存储',
-    icon: <CloudUploadOutlined />,
-    color: '#118ab2',
-    desc: '通过 WebHDFS REST API 上传到 Hadoop 集群',
-  },
-  {
-    value: 'hive',
-    label: 'Hive 数据仓库',
-    icon: <TableOutlined />,
-    color: '#ffd700',
-    desc: '先上传 HDFS，再 LOAD DATA INPATH 到 Hive 表',
   },
 ]
 
@@ -58,18 +44,6 @@ export default function DataImport() {
     fd.append('file', fileList[0].originFileObj)
     fd.append('destination', dest)
     fd.append('task_name', values.task_name || '')
-    if (dest === 'hdfs' || dest === 'hive') {
-      fd.append('hdfs_host', values.hdfs_host || '')
-      fd.append('hdfs_port', values.hdfs_port || 9870)
-      fd.append('hdfs_path', values.hdfs_path || '/user/hadoop/restaurant')
-      fd.append('hdfs_user', values.hdfs_user || 'hadoop')
-    }
-    if (dest === 'hive') {
-      fd.append('hive_host', values.hive_host || 'localhost')
-      fd.append('hive_port', values.hive_port || 10000)
-      fd.append('hive_db', values.hive_db || 'default')
-      fd.append('hive_table', values.hive_table || 'restaurant_info')
-    }
 
     try {
       const res = await fetch('/api/v1/import/upload', {
@@ -157,48 +131,6 @@ export default function DataImport() {
                   <Input placeholder="不填则自动生成" style={S.input} />
                 </Form.Item>
 
-                {(dest === 'hdfs' || dest === 'hive') && (
-                  <>
-                    <Divider style={{ borderColor: 'rgba(255,255,255,0.1)', color: '#8b949e', fontSize: 12 }}>
-                      HDFS 配置
-                    </Divider>
-                    <Form.Item label={<span style={S.label}>HDFS 主机</span>} name="hdfs_host"
-                      rules={[{ required: true, message: '请输入 HDFS 主机地址' }]}>
-                      <Input placeholder="192.168.x.x" style={S.input} />
-                    </Form.Item>
-                    <Form.Item label={<span style={S.label}>WebHDFS 端口</span>} name="hdfs_port" initialValue={9870}>
-                      <InputNumber min={1} max={65535} style={{ ...S.input, width: '100%' }} />
-                    </Form.Item>
-                    <Form.Item label={<span style={S.label}>HDFS 目标路径</span>} name="hdfs_path"
-                      initialValue="/user/hadoop/restaurant">
-                      <Input style={S.input} />
-                    </Form.Item>
-                    <Form.Item label={<span style={S.label}>HDFS 用户名</span>} name="hdfs_user" initialValue="hadoop">
-                      <Input style={S.input} />
-                    </Form.Item>
-                  </>
-                )}
-
-                {dest === 'hive' && (
-                  <>
-                    <Divider style={{ borderColor: 'rgba(255,255,255,0.1)', color: '#8b949e', fontSize: 12 }}>
-                      Hive 配置
-                    </Divider>
-                    <Form.Item label={<span style={S.label}>HiveServer2 主机</span>} name="hive_host" initialValue="localhost">
-                      <Input style={S.input} />
-                    </Form.Item>
-                    <Form.Item label={<span style={S.label}>端口</span>} name="hive_port" initialValue={10000}>
-                      <InputNumber min={1} max={65535} style={{ ...S.input, width: '100%' }} />
-                    </Form.Item>
-                    <Form.Item label={<span style={S.label}>数据库</span>} name="hive_db" initialValue="default">
-                      <Input style={S.input} />
-                    </Form.Item>
-                    <Form.Item label={<span style={S.label}>表名</span>} name="hive_table" initialValue="restaurant_info">
-                      <Input style={S.input} />
-                    </Form.Item>
-                  </>
-                )}
-
                 <Form.Item style={{ marginTop: 16 }}>
                   <Button
                     type="primary"
@@ -257,12 +189,6 @@ export default function DataImport() {
                     {result.rows !== undefined && (
                       <Descriptions.Item label="上传行数">{result.rows} 条</Descriptions.Item>
                     )}
-                    {result.hdfs_path && (
-                      <Descriptions.Item label="HDFS 路径">{result.hdfs_path}</Descriptions.Item>
-                    )}
-                    {result.hive_table && (
-                      <Descriptions.Item label="Hive 表">{result.hive_table}</Descriptions.Item>
-                    )}
                   </Descriptions>
                   <Button
                     style={{ marginTop: 12 }}
@@ -311,7 +237,7 @@ const S = {
     borderRadius: 8, padding: '16px 20px', marginBottom: 16,
   },
   sectionTitle: { fontSize: 14, fontWeight: 600, color: '#ffd700', marginBottom: 12 },
-  destGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 },
+  destGrid: { display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 12 },
   destCard: {
     padding: '16px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'center',
     transition: 'all 0.2s',
