@@ -3,7 +3,6 @@
 # - mysql:     MySQL 8.0 数据库（端口3306，数据持久化到 ./data/mysql）
 # - redis:     Redis 缓存（端口6379）
 # - backend:   FastAPI 后端服务（端口8000，依赖mysql和redis）
-# - celery:    Celery Worker（异步任务处理：报告生成、数据分析）
 # - frontend:  React 前端（端口3000，开发模式；生产环境用nginx）
 #
 # 网络：所有服务在同一 bridge 网络
