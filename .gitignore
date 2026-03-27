@@ -8,10 +8,11 @@ build/
 *.egg
 venv/
 .venv/
+.claude
 
 # Node
 node_modules/
-frontend/dist/
+frontend/node_modules
 
 # IDE
 .vscode/
@@ -40,4 +41,4 @@ data/
 docker-compose.override.yml
 
 # md
-docs/架构设计与开发指南.md
+docs/
